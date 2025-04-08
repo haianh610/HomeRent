@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     id("com.google.gms.google-services")
@@ -15,6 +18,21 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Đọc API key từ local.properties
+        val properties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            // Dùng use để đảm bảo stream được đóng
+            FileInputStream(localPropertiesFile).use { fis ->
+                properties.load(fis)
+            }
+        } else {
+            // Tùy chọn: Ghi log cảnh báo nếu file không tồn tại
+            logger.warn("local.properties file not found. MAPS_API_KEY might be missing.")
+        }
+
+        manifestPlaceholders["MAPS_API_KEY"] = properties.getProperty("MAPS_API_KEY", "") // Lấy key MAPS_API_KEY, trả về "" nếu không tìm thấy
     }
 
     buildTypes {
