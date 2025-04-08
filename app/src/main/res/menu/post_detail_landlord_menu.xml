@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_edit_post"
+        android:icon="@drawable/edit_24px"
+    android:title="Chỉnh sửa"
+    app:showAsAction="ifRoom" />
+
+    <!-- Optional: Thêm nút more options nếu cần -->
+    <!-- <item
+        android:id="@+id/action_more_options"
+        android:icon="@drawable/ic_more_vert"
+        android:title="Tùy chọn khác"
+        app:showAsAction="ifRoom" /> -->
+
+</menu>
