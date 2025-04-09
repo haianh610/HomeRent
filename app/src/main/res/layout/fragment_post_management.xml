@@ -6,11 +6,19 @@
     android:layout_height="match_parent"
     tools:context=".fragment.landlord.PostManagementFragment"> <!-- Đổi context -->
 
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbarManagePostsFrag"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        app:title="Quản lý tin đăng" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewManagePostsFrag"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="8dp"
+        android:layout_marginTop="?attr/actionBarSize"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
         tools:listitem="@layout/item_post_management" />
 
     <TextView
