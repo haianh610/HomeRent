@@ -3,104 +3,108 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="195dp"
     android:layout_margin="8dp"
-    app:cardCornerRadius="8dp"
-    app:cardElevation="4dp">
+    app:cardBackgroundColor="#ECE6F0"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="10dp">
+        android:layout_height="match_parent"
+        android:padding="20dp">
 
         <ImageView
             android:id="@+id/imageViewPostManage"
             android:layout_width="100dp"
             android:layout_height="100dp"
-            android:layout_marginStart="10dp"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="10dp"
             android:scaleType="centerCrop"
             android:src="@drawable/ic_placeholder_image"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" /> <!-- Thay bằng placeholder của bạn -->
+            app:layout_constraintStart_toStartOf="parent" /> <!-- Thay bằng placeholder của bạn -->
 
         <TextView
             android:id="@+id/textViewTitleManage"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
             android:ellipsize="end"
             android:maxLines="2"
             android:textColor="@color/black"
             android:textSize="16sp"
             android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/imageViewPostManage"
-            app:layout_constraintTop_toTopOf="@id/imageViewPostManage"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             tools:text="Phân lô Trần Điền - KĐT Định Công! Ô tô tránh, vỉa hè, kinh doanh đỉnh" />
 
         <TextView
             android:id="@+id/textViewPriceManage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="@color/design_default_color_primary"
-            android:textSize="14sp"
+            android:layout_marginStart="16dp"
+            android:textColor="?attr/actionModeSplitBackground"
+            android:textSize="16sp"
             android:textStyle="bold"
-            app:layout_constraintStart_toStartOf="@id/textViewTitleManage"
-            app:layout_constraintTop_toBottomOf="@id/textViewTitleManage"
+            app:layout_constraintStart_toEndOf="@+id/imageViewPostManage"
+            app:layout_constraintTop_toTopOf="@+id/imageViewPostManage"
             tools:text="11 triệu/tháng" />
 
         <TextView
             android:id="@+id/textViewAddressManage"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginStart="4dp"
             android:ellipsize="end"
             android:maxLines="1"
             android:textSize="12sp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="@id/textViewPriceManage"
-            app:layout_constraintTop_toBottomOf="@id/textViewPriceManage"
+            app:layout_constraintStart_toEndOf="@+id/imageView"
+            app:layout_constraintTop_toTopOf="@+id/imageView"
             tools:text="Tương mai, Hoàng Mai, Hà Nội" />
 
         <TextView
             android:id="@+id/textViewDateManage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginStart="16dp"
             android:textSize="12sp"
             android:textStyle="italic"
-            app:layout_constraintStart_toStartOf="@id/textViewAddressManage"
-            app:layout_constraintTop_toBottomOf="@id/textViewAddressManage"
+            app:layout_constraintBottom_toBottomOf="@+id/imageViewPostManage"
+            app:layout_constraintStart_toEndOf="@+id/imageViewPostManage"
             tools:text="07/04/2025" />
 
         <!-- Optional: Buttons for Edit/Delete -->
         <ImageButton
             android:id="@+id/buttonDeletePost"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Xóa tin"
-            android:src="@android:drawable/ic_menu_delete"
+            android:src="@drawable/outline_delete_24"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:tint="@android:color/holo_red_dark"
-            android:layout_marginEnd="8dp"/>
+            app:tint="#625B71" />
 
         <ImageButton
             android:id="@+id/buttonEditPost"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginEnd="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Sửa tin"
-            android:src="@android:drawable/ic_menu_edit"
+            android:src="@drawable/outline_edit_24"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/buttonDeletePost"
-            app:tint="@color/design_default_color_primary"
-            android:layout_marginEnd="8dp"/>
+            app:tint="#625B71" />
+
+        <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginTop="7dp"
+            app:layout_constraintStart_toStartOf="@+id/textViewPriceManage"
+            app:layout_constraintTop_toBottomOf="@+id/textViewPriceManage"
+            app:srcCompat="@drawable/location_on_24px" />
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>
