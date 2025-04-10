@@ -2,17 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <!-- Trong AndroidManifest.xml, bên trong thẻ <application> -->
-
     <!-- Cho Android 13 trở lên -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-
-    <!-- Cho Android 12 trở xuống -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" /> <!-- Cho Android 12 trở xuống -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:allowBackup="true"
@@ -24,8 +20,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.HomeRent"
         tools:targetApi="31">
-
-
+        <activity
+            android:name=".fragment.tenant.PostViewFragment"
+            android:exported="false" />
+        <activity
+            android:name=".activity.tenant.TenantHomeActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HomeRent" />
         <activity
             android:name=".activity.landlord.CreatePostActivity"
             android:exported="false" />
@@ -35,7 +36,6 @@
         <activity
             android:name=".ChangePasswordActivity"
             android:exported="false" />
-
         <activity
             android:name=".activity.landlord.LandlordHomeActivity"
             android:exported="false" />
