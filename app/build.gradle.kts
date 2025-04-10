@@ -7,6 +7,20 @@ plugins {
 }
 
 android {
+    packagingOptions {
+        resources {
+            excludes += setOf(
+                "META-INF/*.kotlin_module",
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/license.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt",
+                "META-INF/notice.txt"
+            )
+        }
+    }
     namespace = "com.example.homerent"
     compileSdk = 35
 
@@ -48,6 +62,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    buildFeatures {
+        viewBinding =true
+    }
 }
 
 dependencies {
@@ -67,7 +84,6 @@ dependencies {
     androidTestImplementation(libs.espresso.core)
     implementation(platform("com.google.firebase:firebase-bom:33.12.0"))
     implementation ("com.github.bumptech.glide:glide:4.12.0") // Kiểm tra phiên bản mới nhất
-    annotationProcessor ("com.github.bumptech.glide:compiler:4.12.0")
+    implementation ("com.github.bumptech.glide:glide:4.16.0")
     implementation ("de.hdodenhof:circleimageview:3.1.0") // Check for the latest version
-    implementation ("com.google.code.gson:gson:2.10.1") // Check for the latest version
 }

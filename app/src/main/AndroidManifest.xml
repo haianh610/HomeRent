@@ -3,6 +3,11 @@
     xmlns:tools="http://schemas.android.com/tools">
     <!-- Trong AndroidManifest.xml, bên trong thẻ <application> -->
 
+    <!-- Cho Android 13 trở lên -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!-- Cho Android 12 trở xuống -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -19,6 +24,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.HomeRent"
         tools:targetApi="31">
+
+
         <activity
             android:name=".activity.landlord.CreatePostActivity"
             android:exported="false" />
@@ -26,7 +33,14 @@
             android:name=".activity.landlord.PostDetailLandlordActivity"
             android:exported="false" />
         <activity
+            android:name=".ChangePasswordActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".activity.landlord.LandlordHomeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ChangeAccountActivity"
             android:exported="false" />
         <activity
             android:name=".RegisterActivity"
