@@ -37,62 +37,77 @@
             android:padding="16dp">
 
             <!-- Địa chỉ -->
+            <!-- Địa chỉ -->
             <TextView
                 style="@style/TextAppearance.MaterialComponents.Headline6"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:text="Địa chỉ" />
+                android:text="Địa chỉ"
+                android:layout_marginBottom="8dp"/>
 
+            <!-- Province AutoCompleteTextView -->
             <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:id="@+id/tilProvince"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Tỉnh/Thành phố">
+                android:hint="Tỉnh/Thành phố (*)">
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etCity"
+                <AutoCompleteTextView
+                    android:id="@+id/actProvince"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:inputType="none" /> <!-- Quan trọng: ngăn bàn phím hiện ra -->
+
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- District AutoCompleteTextView -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilDistrict"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Quận/Huyện (*)">
+
+                <AutoCompleteTextView
+                    android:id="@+id/actDistrict"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:enabled="false"
+                    android:inputType="none" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Commune AutoCompleteTextView -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilCommune"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Phường/Xã (*)">
+
+                <AutoCompleteTextView
+                    android:id="@+id/actCommune"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:enabled="false"
+                    android:inputType="none" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- EditText Địa chỉ chi tiết (Không bắt buộc) -->
             <com.google.android.material.textfield.TextInputLayout
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Quận/Huyện">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etDistrict"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="Phường/Xã">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etWard"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="Địa chỉ chi tiết (Số nhà, tên đường)">
-
+                android:hint="Địa chỉ chi tiết (Số nhà, tên đường)"> <!-- Bỏ dấu (*) -->
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etAddressDetail"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"/>
             </com.google.android.material.textfield.TextInputLayout>
 
             <Button
