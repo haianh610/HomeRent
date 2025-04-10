@@ -6,12 +6,15 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
 
+// Import model User
 import com.example.homerent.activity.landlord.LandlordHomeActivity;
+import com.example.homerent.activity.tenant.TenantHomeActivity;
+
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -19,25 +22,23 @@ public class LoginActivity extends AppCompatActivity {
     private Button btnLogin;
     private TextView registerHere;
     private FirebaseAuth mAuth;
+    private FirebaseFirestore db;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
-        // Initialize Firebase Auth
         mAuth = FirebaseAuth.getInstance();
+        db = FirebaseFirestore.getInstance();
 
-        // Initialize UI elements
         email = findViewById(R.id.email);
         password = findViewById(R.id.password);
         btnLogin = findViewById(R.id.btnLogin);
         registerHere = findViewById(R.id.registerHere);
 
-        // Set click listeners
         btnLogin.setOnClickListener(v -> loginUser());
         registerHere.setOnClickListener(v -> {
-            // Navigate to RegisterActivity
             Intent intent = new Intent(LoginActivity.this, RegisterActivity.class);
             startActivity(intent);
         });
@@ -47,28 +48,41 @@ public class LoginActivity extends AppCompatActivity {
         String emailInput = email.getText().toString().trim();
         String passwordInput = password.getText().toString().trim();
 
-        // Simple validation
         if (emailInput.isEmpty() || passwordInput.isEmpty()) {
             Toast.makeText(this, "Vui lòng điền đầy đủ thông tin", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Sign in with email and password
         mAuth.signInWithEmailAndPassword(emailInput, passwordInput)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
-                        // Sign in success
                         FirebaseUser user = mAuth.getCurrentUser();
-                        Toast.makeText(LoginActivity.this, "Đăng nhập thành công", Toast.LENGTH_SHORT).show();
-
-                        // Navigate to MainActivity
-                        Intent intent = new Intent(LoginActivity.this, LandlordHomeActivity.class);
-                        startActivity(intent);
-                        finish();
+                        if (user != null) {
+                            String userId = user.getUid();
+                            db.collection("users").document(userId).get()
+                                    .addOnSuccessListener(documentSnapshot -> {
+                                        if (documentSnapshot.exists()) {
+                                            String role = documentSnapshot.getString("role");
+                                            Intent intent;
+                                            if ("landlord".equals(role)) {
+                                                intent = new Intent(LoginActivity.this, LandlordHomeActivity.class);
+                                            } else {
+                                                intent = new Intent(LoginActivity.this, TenantHomeActivity.class);
+                                            }
+                                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                            startActivity(intent);
+                                            finish();
+                                            Toast.makeText(LoginActivity.this, "Đăng nhập thành công", Toast.LENGTH_SHORT).show();
+                                        } else {
+                                            Toast.makeText(LoginActivity.this, "Không tìm thấy thông tin người dùng", Toast.LENGTH_SHORT).show();
+                                        }
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Toast.makeText(LoginActivity.this, "Lỗi khi lấy thông tin: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                    });
+                        }
                     } else {
-                        // If sign in fails, display a message to the user
-                        Toast.makeText(LoginActivity.this, "Đăng nhập thất bại: " + task.getException().getMessage(),
-                                Toast.LENGTH_SHORT).show();
+                        Toast.makeText(LoginActivity.this, "Đăng nhập thất bại: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
     }

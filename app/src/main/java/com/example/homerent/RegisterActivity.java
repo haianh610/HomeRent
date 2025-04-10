@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 // Import model User
 import com.example.homerent.activity.landlord.LandlordHomeActivity;
+import com.example.homerent.activity.tenant.TenantHomeActivity;
 import com.example.homerent.model.User;
 
 import com.google.firebase.Timestamp;
@@ -115,11 +116,12 @@ public class RegisterActivity extends AppCompatActivity {
                                         Log.d(TAG, "User profile created successfully for: " + userId);
                                         Toast.makeText(RegisterActivity.this, "Đăng ký thành công!", Toast.LENGTH_SHORT).show();
 
+                                        // Trong hàm registerUser(), sau khi lưu user vào Firestore
                                         Intent intent;
                                         if ("landlord".equals(role)) {
                                             intent = new Intent(RegisterActivity.this, LandlordHomeActivity.class);
                                         } else {
-                                            intent = new Intent(RegisterActivity.this, MainActivity.class); // Cần tạo Activity này
+                                            intent = new Intent(RegisterActivity.this, TenantHomeActivity.class);
                                         }
                                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                                         startActivity(intent);
