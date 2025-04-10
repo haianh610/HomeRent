@@ -49,7 +49,6 @@ import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
 import java.io.IOException;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -59,6 +58,24 @@ import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import android.widget.AdapterView; // Import AdapterView
+import android.widget.ArrayAdapter; // Import ArrayAdapter
+import android.widget.AutoCompleteTextView;
+import com.google.android.material.textfield.TextInputLayout;
+
+import com.example.homerent.model.AddressData;
+import com.example.homerent.model.Commune;
+import com.example.homerent.model.District;
+import com.example.homerent.model.Province;
+import com.google.gson.Gson;
+
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.stream.Collectors; // Cần Java 8+
+
 public class CreatePostActivity extends AppCompatActivity implements OnMapReadyCallback, SelectedImageAdapter.OnImageRemoveListener {
 
     private static final String TAG = "CreatePostActivity";
@@ -66,9 +83,29 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
     private Toolbar toolbar;
-    private TextInputEditText etCity, etDistrict, etWard, etAddressDetail, etArea, etPrice,
+    private TextInputEditText etAddressDetail, etArea, etPrice,
             etBedrooms, etFloors, etContactName, etContactEmail, etContactPhone,
             etPostTitle, etPostDescription;
+
+    private AutoCompleteTextView actProvince, actDistrict, actCommune;
+    private TextInputLayout tilProvince, tilDistrict, tilCommune; // Để bật/tắt dễ hơn
+
+    private ArrayAdapter<Province> provinceArrayAdapter;
+    private ArrayAdapter<District> districtArrayAdapter;
+    private ArrayAdapter<Commune> communeArrayAdapter;
+
+    private List<Province> allProvinces = new ArrayList<>();
+    private List<District> allDistricts = new ArrayList<>();
+    private List<Commune> allCommunes = new ArrayList<>();
+
+    private List<District> filteredDistricts = new ArrayList<>(); // List quận/huyện cho tỉnh đã chọn
+    private List<Commune> filteredCommunes = new ArrayList<>(); // List phường/xã cho quận đã chọn
+
+    // Lưu trữ lựa chọn hiện tại
+    private Province selectedProvince;
+    private District selectedDistrict;
+    private Commune selectedCommune;
+
     private Button btnLocateAddress, btnAddImage, btnSavePost, btnStartDate, btnEndDate;
     private TextView tvSelectedDates;
     private RecyclerView rvSelectedImages;
@@ -114,6 +151,9 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
         // Bind Views
         bindViews();
 
+        // Load dữ liệu địa chỉ từ JSON
+        loadAddressData();
+
         // Setup Toolbar
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
@@ -143,9 +183,14 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
 
     private void bindViews() {
         toolbar = findViewById(R.id.toolbarCreatePost);
-        etCity = findViewById(R.id.etCity);
-        etDistrict = findViewById(R.id.etDistrict);
-        etWard = findViewById(R.id.etWard);
+        // Ánh xạ AutoCompleteTextView và TextInputLayout
+        actProvince = findViewById(R.id.actProvince);
+        actDistrict = findViewById(R.id.actDistrict);
+        actCommune = findViewById(R.id.actCommune);
+        tilProvince = findViewById(R.id.tilProvince);
+        tilDistrict = findViewById(R.id.tilDistrict);
+        tilCommune = findViewById(R.id.tilCommune);
+
         etAddressDetail = findViewById(R.id.etAddressDetail);
         etArea = findViewById(R.id.etArea);
         etPrice = findViewById(R.id.etPrice);
@@ -171,6 +216,163 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
         rvSelectedImages.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         rvSelectedImages.setAdapter(selectedImageAdapter);
     }
+
+    private void loadAddressData() {
+        try {
+            InputStream is = getAssets().open("donvihanhchinh.json"); // Tên file JSON của bạn
+            Reader reader = new InputStreamReader(is, StandardCharsets.UTF_8);
+            Gson gson = new Gson();
+            AddressData data = gson.fromJson(reader, AddressData.class);
+            reader.close();
+
+            if (data != null) {
+                allProvinces = data.getProvinces() != null ? data.getProvinces() : new ArrayList<>();
+                allDistricts = data.getDistricts() != null ? data.getDistricts() : new ArrayList<>();
+                allCommunes = data.getCommunes() != null ? data.getCommunes() : new ArrayList<>();
+
+                Log.d(TAG, "Loaded " + allProvinces.size() + " provinces, " + allDistricts.size() + " districts, " + allCommunes.size() + " communes.");
+
+                // Sắp xếp theo tên (tùy chọn)
+                Collections.sort(allProvinces, (p1, p2) -> p1.getName().compareTo(p2.getName()));
+                // Không cần sắp xếp district/commune ban đầu vì sẽ lọc động
+
+                setupAutoCompleteTextViews(); // Setup spinner sau khi có dữ liệu
+            } else {
+                Log.e(TAG, "Failed to parse AddressData from JSON.");
+                Toast.makeText(this, "Lỗi đọc dữ liệu địa chỉ.", Toast.LENGTH_SHORT).show();
+            }
+
+        } catch (IOException e) {
+            Log.e(TAG, "Error reading address JSON file", e);
+            Toast.makeText(this, "Lỗi đọc file dữ liệu địa chỉ.", Toast.LENGTH_SHORT).show();
+        } catch (com.google.gson.JsonSyntaxException e) {
+            Log.e(TAG, "Error parsing address JSON file", e);
+            Toast.makeText(this, "Lỗi định dạng file dữ liệu địa chỉ.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void setupAutoCompleteTextViews() {
+        // --- Province AutoCompleteTextView ---
+        // Không cần thêm item hint vì TextInputLayout đã có hint
+        provinceArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, allProvinces);
+        actProvince.setAdapter(provinceArrayAdapter);
+        actProvince.setOnItemClickListener((parent, view, position, id) -> {
+            selectedProvince = (Province) parent.getItemAtPosition(position);
+            Log.d(TAG, "Province Selected: " + selectedProvince.getName() + " (ID: " + selectedProvince.getIdProvince() + ")");
+
+            // Clear và cập nhật District
+            actDistrict.setText("", false); // Clear text, false để không trigger listener
+            selectedDistrict = null;
+            updateDistrictDropdown(selectedProvince.getIdProvince());
+
+            // Clear và vô hiệu hóa Commune
+            actCommune.setText("", false);
+            selectedCommune = null;
+            updateCommuneDropdown(null); // Gọi với null để clear và disable
+            tilCommune.setEnabled(false);
+
+            updateMapLocation();
+        });
+
+        // --- District AutoCompleteTextView ---
+        // Khởi tạo adapter rỗng ban đầu
+        districtArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, new ArrayList<>());
+        actDistrict.setAdapter(districtArrayAdapter);
+        // tilDistrict đã được disable trong XML, sẽ enable khi có dữ liệu
+
+        actDistrict.setOnItemClickListener((parent, view, position, id) -> {
+            selectedDistrict = (District) parent.getItemAtPosition(position);
+            Log.d(TAG, "District Selected: " + selectedDistrict.getName() + " (ID: " + selectedDistrict.getIdDistrict() + ")");
+
+            // Clear và cập nhật Commune
+            actCommune.setText("", false);
+            selectedCommune = null;
+            updateCommuneDropdown(selectedDistrict.getIdDistrict());
+
+            updateMapLocation();
+        });
+
+        // --- Commune AutoCompleteTextView ---
+        // Khởi tạo adapter rỗng ban đầu
+        communeArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, new ArrayList<>());
+        actCommune.setAdapter(communeArrayAdapter);
+        // tilCommune đã được disable trong XML
+
+        actCommune.setOnItemClickListener((parent, view, position, id) -> {
+            selectedCommune = (Commune) parent.getItemAtPosition(position);
+            Log.d(TAG, "Commune Selected: " + selectedCommune.getName() + " (ID: " + selectedCommune.getIdCommune() + ")");
+            updateMapLocation();
+        });
+    }
+    private void updateMapLocation() {
+        // Tự động geocode khi chọn xong Phường/Xã hoặc có đủ thông tin
+        if (selectedProvince != null && selectedDistrict != null && selectedCommune != null && !TextUtils.isEmpty(etAddressDetail.getText().toString().trim())) {
+            geocodeAddress();
+        } else if (selectedProvince != null && selectedDistrict != null && !TextUtils.isEmpty(etAddressDetail.getText().toString().trim())){
+            // Hoặc geocode khi chỉ có Tỉnh/Huyện/Chi tiết để lấy vị trí tương đối
+            geocodeAddress();
+        }
+        // Có thể thêm logic chỉ zoom về Tỉnh/Huyện nếu chỉ chọn đến đó
+    }
+
+    private void updateDistrictDropdown(String provinceId) {
+        filteredDistricts.clear();
+        boolean hasData = false;
+        if (provinceId != null) {
+            filteredDistricts = allDistricts.stream()
+                    .filter(d -> provinceId.equals(d.getIdProvince()))
+                    .sorted((d1, d2) -> d1.getName().compareTo(d2.getName()))
+                    .collect(Collectors.toList());
+            hasData = !filteredDistricts.isEmpty();
+            Log.d(TAG, "Found " + filteredDistricts.size() + " districts for province ID: " + provinceId);
+        }
+
+        // Cập nhật Adapter
+        districtArrayAdapter.clear();
+        if (hasData) {
+            districtArrayAdapter.addAll(filteredDistricts);
+        }
+        districtArrayAdapter.notifyDataSetChanged();
+
+        // Bật/tắt TextInputLayout
+        tilDistrict.setEnabled(hasData);
+        // Đảm bảo text được xóa nếu không có data
+        if (!hasData) {
+            actDistrict.setText("", false);
+            selectedDistrict = null;
+        }
+    }
+
+    // Đổi tên hàm updateCommuneSpinner thành updateCommuneDropdown
+    private void updateCommuneDropdown(String districtId) {
+        filteredCommunes.clear();
+        boolean hasData = false;
+        if (districtId != null) {
+            filteredCommunes = allCommunes.stream()
+                    .filter(c -> districtId.equals(c.getIdDistrict()))
+                    .sorted((c1, c2) -> c1.getName().compareTo(c2.getName()))
+                    .collect(Collectors.toList());
+            hasData = !filteredCommunes.isEmpty();
+            Log.d(TAG, "Found " + filteredCommunes.size() + " communes for district ID: " + districtId);
+        }
+
+        // Cập nhật Adapter
+        communeArrayAdapter.clear();
+        if(hasData){
+            communeArrayAdapter.addAll(filteredCommunes);
+        }
+        communeArrayAdapter.notifyDataSetChanged();
+
+        // Bật/tắt TextInputLayout
+        tilCommune.setEnabled(hasData);
+        // Đảm bảo text được xóa nếu không có data
+        if (!hasData) {
+            actCommune.setText("", false);
+            selectedCommune = null;
+        }
+    }
+
+
 
     private void setupImagePicker() {
         imagePickerLauncher = registerForActivityResult(
@@ -310,17 +512,24 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
     }
 
     private void geocodeAddress() {
-        String city = etCity.getText().toString().trim();
-        String district = etDistrict.getText().toString().trim();
-        String ward = etWard.getText().toString().trim();
+        String city = actProvince.getText().toString().trim(); // Lấy text trực tiếp
+        String district = actDistrict.getText().toString().trim();
+        String ward = actCommune.getText().toString().trim();
         String addressDetail = etAddressDetail.getText().toString().trim();
 
-        String fullAddress = addressDetail + ", " + ward + ", " + district + ", " + city;
-        fullAddress = fullAddress.replaceAll("(, )+", ", ").replaceAll("^, |, $", "").trim(); // Clean up commas
+        // Tạo địa chỉ đầy đủ hơn để geocode (thứ tự có thể ảnh hưởng kết quả)
+        String fullAddress = addressDetail;
+        if (!TextUtils.isEmpty(ward)) fullAddress = (!TextUtils.isEmpty(fullAddress)? fullAddress + ", " : "") + ward;
+        if (!TextUtils.isEmpty(district)) fullAddress = (!TextUtils.isEmpty(fullAddress)? fullAddress + ", " : "") + district;
+        if (!TextUtils.isEmpty(city)) fullAddress = (!TextUtils.isEmpty(fullAddress)? fullAddress + ", " : "") + city;
+        fullAddress += ", Việt Nam";
 
-        if (TextUtils.isEmpty(fullAddress) || fullAddress.equals(",")) {
-            Toast.makeText(this, "Vui lòng nhập địa chỉ", Toast.LENGTH_SHORT).show();
-            return;
+        fullAddress = fullAddress.replaceAll("^, ", "").trim(); // Bỏ dấu phẩy đầu
+
+        // Chỉ geocode nếu có ít nhất Tỉnh/TP
+        if (TextUtils.isEmpty(city)) {
+            // Toast.makeText(this, "Vui lòng chọn ít nhất Tỉnh/Thành phố", Toast.LENGTH_SHORT).show();
+            return; // Không geocode nếu chưa chọn tỉnh
         }
 
         Log.d(TAG, "Geocoding address: " + fullAddress);
@@ -374,24 +583,40 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
         }
     }
 
+    // validateInput: Kiểm tra text của AutoCompleteTextView
     private boolean validateInput() {
-        // Add more specific validation as needed (e.g., check ranges)
-        if (TextUtils.isEmpty(etCity.getText())) { showValidationError(etCity, "Vui lòng nhập Tỉnh/Thành phố"); return false; }
-        if (TextUtils.isEmpty(etDistrict.getText())) { showValidationError(etDistrict, "Vui lòng nhập Quận/Huyện"); return false; }
-        if (TextUtils.isEmpty(etWard.getText())) { showValidationError(etWard, "Vui lòng nhập Phường/Xã"); return false; }
-        if (TextUtils.isEmpty(etAddressDetail.getText())) { showValidationError(etAddressDetail, "Vui lòng nhập địa chỉ chi tiết"); return false; }
-        if (TextUtils.isEmpty(etArea.getText())) { showValidationError(etArea, "Vui lòng nhập diện tích"); return false; }
-        if (TextUtils.isEmpty(etPrice.getText())) { showValidationError(etPrice, "Vui lòng nhập mức giá"); return false; }
-        if (TextUtils.isEmpty(etBedrooms.getText())) { showValidationError(etBedrooms, "Vui lòng nhập số phòng ngủ"); return false; }
-        if (TextUtils.isEmpty(etFloors.getText())) { showValidationError(etFloors, "Vui lòng nhập số tầng"); return false; }
-        if (TextUtils.isEmpty(etPostTitle.getText())) { showValidationError(etPostTitle, "Vui lòng nhập tiêu đề"); return false; }
-        if (TextUtils.isEmpty(etPostDescription.getText())) { showValidationError(etPostDescription, "Vui lòng nhập mô tả"); return false; }
+        if (TextUtils.isEmpty(actProvince.getText())) {
+            tilProvince.setError("Vui lòng chọn Tỉnh/Thành phố");
+            actProvince.requestFocus();
+            return false;
+        } else {
+            tilProvince.setError(null); // Clear error
+        }
+
+        if (TextUtils.isEmpty(actDistrict.getText())) {
+            tilDistrict.setError("Vui lòng chọn Quận/Huyện");
+            actDistrict.requestFocus();
+            return false;
+        } else {
+            tilDistrict.setError(null);
+        }
+
+        if (TextUtils.isEmpty(actCommune.getText())) {
+            tilCommune.setError("Vui lòng chọn Phường/Xã");
+            actCommune.requestFocus();
+            return false;
+        } else {
+            tilCommune.setError(null);
+        }
+
+        // Bỏ kiểm tra bắt buộc cho etAddressDetail
+        // if (TextUtils.isEmpty(etAddressDetail.getText())) { showValidationError(etAddressDetail, "Vui lòng nhập địa chỉ chi tiết"); return false; }
+
+        // ... (Các kiểm tra khác giữ nguyên: area, price, bedrooms, floors, title, description, dates, parse số)
+        if (TextUtils.isEmpty(etArea.getText())) { showValidationError(etArea, "Vui lòng nhập diện tích"); return false; } else {etArea.setError(null);}
+        // ... thêm clear error cho các trường khác
         if (startDateTimestamp == null) { Toast.makeText(this, "Vui lòng chọn ngày bắt đầu", Toast.LENGTH_SHORT).show(); return false;}
         if (endDateTimestamp == null) { Toast.makeText(this, "Vui lòng chọn ngày kết thúc", Toast.LENGTH_SHORT).show(); return false;}
-        // Optional validation for contact info
-        // ...
-
-        // Validate numbers
         try {
             Double.parseDouble(etArea.getText().toString());
             Long.parseLong(etPrice.getText().toString());
@@ -401,7 +626,6 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
             Toast.makeText(this, "Diện tích, giá, số phòng, số tầng phải là số hợp lệ", Toast.LENGTH_SHORT).show();
             return false;
         }
-
 
         return true;
     }
@@ -460,8 +684,8 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
 
 
     private void saveDataToFirestore(List<String> imageUrls) {
-        if (currentUser == null) {
-            showErrorAndReset("Lỗi: Người dùng không tồn tại.");
+        if (currentUser == null || !validateInput()) {
+            showErrorAndReset("Lỗi: Dữ liệu không hợp lệ hoặc người dùng không tồn tại.");
             return;
         }
 
@@ -469,12 +693,14 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
         newPost.setUserId(currentUser.getUid());
         newPost.setTitle(etPostTitle.getText().toString().trim());
         newPost.setDescription(etPostDescription.getText().toString().trim());
-        newPost.setCity(etCity.getText().toString().trim());
-        newPost.setDistrict(etDistrict.getText().toString().trim());
-        newPost.setWard(etWard.getText().toString().trim());
-        newPost.setAddress(etAddressDetail.getText().toString().trim());
 
-        // Parse numbers safely after validation
+        // Lấy tên từ AutoCompleteTextView
+        newPost.setCity(actProvince.getText().toString().trim());
+        newPost.setDistrict(actDistrict.getText().toString().trim());
+        newPost.setWard(actCommune.getText().toString().trim());
+        newPost.setAddress(etAddressDetail.getText().toString().trim()); // Có thể rỗng
+
+        // ... (Gán các giá trị khác như cũ)
         try {
             newPost.setArea(Double.parseDouble(etArea.getText().toString()));
             newPost.setPrice(Long.parseLong(etPrice.getText().toString()));
@@ -485,30 +711,28 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
             Log.e(TAG, "Number parsing error during save", e);
             return;
         }
-
         newPost.setImageUrls(imageUrls);
         newPost.setTimestamp(Timestamp.now());
-        newPost.setAvailable(true); // Default to available
-        newPost.setViewCount(0); // Default view count
-        newPost.setStartDate(startDateTimestamp); // Gán Timestamp đã chọn
-        newPost.setEndDate(endDateTimestamp); // Gán Timestamp đã chọn
-
+        newPost.setAvailable(true);
+        newPost.setViewCount(0);
+        newPost.setStartDate(startDateTimestamp);
+        newPost.setEndDate(endDateTimestamp);
         if (currentLatLng != null) {
             newPost.setLatitude(currentLatLng.latitude);
             newPost.setLongitude(currentLatLng.longitude);
         } else {
-            newPost.setLatitude(0); // Hoặc giá trị mặc định khác
+            newPost.setLatitude(0);
             newPost.setLongitude(0);
         }
 
         // --- Save to Firestore ---
         db.collection("posts")
-                .add(newPost) // Use add() to auto-generate ID
+                .add(newPost)
                 .addOnSuccessListener(documentReference -> {
                     Log.d(TAG, "Post created successfully with ID: " + documentReference.getId());
                     progressBarCreatePost.setVisibility(View.GONE);
                     Toast.makeText(CreatePostActivity.this, "Đăng tin thành công!", Toast.LENGTH_SHORT).show();
-                    finish(); // Go back to the previous activity
+                    finish();
                 })
                 .addOnFailureListener(e -> {
                     Log.w(TAG, "Error adding post document", e);
