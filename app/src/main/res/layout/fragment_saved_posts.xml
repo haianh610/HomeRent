@@ -5,10 +5,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".fragment.tenant.PostViewFragment">
+    tools:context=".fragment.tenant.SavedPostsFragment">
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerViewPostView"
+        android:id="@+id/recyclerViewSavedPosts"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:paddingStart="8dp"
@@ -18,16 +18,16 @@
         tools:listitem="@layout/item_post_view" />
 
     <TextView
-        android:id="@+id/textViewNoPostsView"
+        android:id="@+id/textViewNoSavedPosts"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:text="Không có tin đăng nào."
+        android:text="Bạn chưa lưu tin đăng nào."
         android:textSize="18sp"
         android:visibility="gone" />
 
     <ProgressBar
-        android:id="@+id/progressBarPostView"
+        android:id="@+id/progressBarSavedPosts"
         style="?android:attr/progressBarStyle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

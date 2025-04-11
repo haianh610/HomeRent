@@ -2,12 +2,12 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/navigation_home"
-        android:icon="@drawable/person_24px"
+        android:icon="@drawable/home_24px"
         android:title="Trang chủ" />
 
     <item
         android:id="@+id/navigation_saved_posts"
-        android:icon="@drawable/person_24px"
+        android:icon="@drawable/bookmark_24px"
         android:title="Tin đã lưu" />
 
     <item
