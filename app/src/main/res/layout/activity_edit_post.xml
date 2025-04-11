@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout_edit_post"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F8F5FF"
+    tools:context=".activity.landlord.EditPostActivity">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayoutEdit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbarEditPost"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="Chỉnh sửa tin đăng" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingBottom="80dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Địa chỉ -->
+            <!-- Địa chỉ -->
+            <TextView
+                style="@style/TextAppearance.MaterialComponents.Headline6"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="Địa chỉ" />
+
+            <!-- Province AutoCompleteTextView -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilProvince"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Tỉnh/Thành phố (*)">
+
+                <AutoCompleteTextView
+                    android:id="@+id/actProvince"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="none" /> <!-- Quan trọng: ngăn bàn phím hiện ra -->
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- District AutoCompleteTextView -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilDistrict"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Quận/Huyện (*)">
+
+                <AutoCompleteTextView
+                    android:id="@+id/actDistrict"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:enabled="false"
+                    android:inputType="none" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Commune AutoCompleteTextView -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilCommune"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Phường/Xã (*)">
+
+                <AutoCompleteTextView
+                    android:id="@+id/actCommune"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:enabled="false"
+                    android:inputType="none" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- EditText Địa chỉ chi tiết (Không bắt buộc) -->
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Địa chỉ chi tiết (Số nhà, tên đường)"> <!-- Bỏ dấu (*) -->
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etAddressDetail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <Button
+                android:id="@+id/btnLocateAddress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Định vị trên bản đồ"
+                app:icon="@drawable/ic_location_pin" /> <!-- Cần icon này -->
+
+            <!-- Google Map Fragment -->
+            <androidx.fragment.app.FragmentContainerView
+                android:id="@+id/mapFragmentContainer"
+                android:name="com.google.android.gms.maps.SupportMapFragment"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:layout_marginTop="8dp" />
+
+            <!-- Thông tin chính -->
+            <TextView
+                style="@style/TextAppearance.MaterialComponents.Headline6"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                android:text="Thông tin chính" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Diện tích (m2)">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etArea"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="numberDecimal" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Mức giá (VND/tháng)">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etPrice"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Thông tin khác -->
+            <TextView
+                style="@style/TextAppearance.MaterialComponents.Headline6"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                android:text="Thông tin khác" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Số phòng ngủ">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etBedrooms"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Bỏ qua số phòng tắm nếu không có trong model
+            <com.google.android.material.textfield.TextInputLayout
+                ...>
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etBathrooms" />
+            </com.google.android.material.textfield.TextInputLayout>
+            -->
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Số tầng">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etFloors"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Thời hạn đăng tin -->
+            <TextView
+                style="@style/TextAppearance.MaterialComponents.Subtitle1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:labelFor="@id/rgPostDuration"
+                android:text="Thời hạn đăng tin (*)" /> <!-- Hoặc style phù hợp -->
+
+            <RadioGroup
+                android:id="@+id/rgPostDuration"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/rbDuration10"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="16dp"
+                    android:checked="true"
+                    android:text="10 ngày" /> <!-- Chọn sẵn 10 ngày làm mặc định -->
+
+                <RadioButton
+                    android:id="@+id/rbDuration20"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="16dp"
+                    android:text="20 ngày" />
+
+                <RadioButton
+                    android:id="@+id/rbDuration30"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="30 ngày" />
+            </RadioGroup>
+
+            <!-- Bỏ qua thời gian vào ở nếu không có trong model
+            <com.google.android.material.textfield.TextInputLayout
+                 ...>
+                 <com.google.android.material.textfield.TextInputEditText
+                     android:id="@+id/etMoveInTime" />
+            </com.google.android.material.textfield.TextInputLayout>
+             -->
+
+            <!-- Thông tin liên hệ (Có thể tự điền từ User profile) -->
+            <TextView
+                style="@style/TextAppearance.MaterialComponents.Headline6"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                android:text="Thông tin liên hệ" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Tên liên hệ">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etContactName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Email">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etContactEmail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textEmailAddress" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Số điện thoại">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etContactPhone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="phone" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Tiêu đề và mô tả -->
+            <TextView
+                style="@style/TextAppearance.MaterialComponents.Headline6"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                android:text="Tiêu đề và mô tả" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Tiêu đề bài đăng">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etPostTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Mô tả chi tiết">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etPostDescription"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="top"
+                    android:minLines="3" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Thêm ảnh -->
+            <TextView
+                style="@style/TextAppearance.MaterialComponents.Headline6"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                android:text="Thêm ảnh" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvSelectedImages"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_dashed_border"
+                android:minHeight="100dp"
+                android:orientation="vertical"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                tools:itemCount="3"
+                tools:listitem="@layout/item_selected_image" /> <!-- Cần tạo drawable này -->
+
+            <Button
+                android:id="@+id/btnAddImage"
+                style="@style/Widget.MaterialComponents.Button.TextButton.Icon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="8dp"
+                android:text="Thêm ảnh"
+                app:icon="@drawable/ic_add_photo" /> <!-- Cần icon này -->
+            <Button
+                android:id="@+id/btnUpdatePost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:text="Cập nhật thông tin"
+                app:layout_insetEdge="bottom" />
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Nút Lưu thông tin -->
+
+
+    <ProgressBar
+        android:id="@+id/progressBarEditPost"
+        style="?android:attr/progressBarStyleLarge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

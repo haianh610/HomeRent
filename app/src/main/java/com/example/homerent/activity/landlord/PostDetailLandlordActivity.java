@@ -1,5 +1,6 @@
 package com.example.homerent.activity.landlord;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -12,6 +13,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -79,6 +82,9 @@ public class PostDetailLandlordActivity extends AppCompatActivity implements Ima
     private SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
     private NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
 
+    private ActivityResultLauncher<Intent> editPostLauncher;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         EdgeToEdge.enable(this);
@@ -126,6 +132,29 @@ public class PostDetailLandlordActivity extends AppCompatActivity implements Ima
         btnEditPostBottom = findViewById(R.id.btnEditPostBottom);
         progressBarDetail = findViewById(R.id.progressBarDetail);
         scrollViewContent = findViewById(R.id.LandlordDetailScrollView);
+
+        editPostLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    // Kiểm tra xem kết quả trả về có phải là RESULT_OK không
+                    if (result.getResultCode() == Activity.RESULT_OK) {
+                        // Chỉnh sửa thành công, load lại dữ liệu!
+                        Log.d(TAG, "Returned from EditPostActivity with RESULT_OK. Refreshing data.");
+                        // Gọi lại hàm load dữ liệu chi tiết
+                        if (postId != null && !postId.isEmpty()) {
+                            loadPostDetails();
+                        } else {
+                            Log.e(TAG, "Post ID is null or empty after returning from edit. Cannot refresh.");
+                            Toast.makeText(this, "Lỗi không thể tải lại dữ liệu sau khi sửa.", Toast.LENGTH_SHORT).show();
+                            finish(); // Đóng màn hình chi tiết nếu không có ID
+                        }
+                    } else {
+                        // Người dùng hủy hoặc có lỗi bên EditPostActivity
+                        Log.d(TAG, "Returned from EditPostActivity without RESULT_OK (Result Code: " + result.getResultCode() + ")");
+                        // Không cần làm gì ở đây, dữ liệu cũ vẫn hiển thị
+                    }
+                }
+        );
 
         // Setup Toolbar
         setSupportActionBar(toolbar);
@@ -321,24 +350,30 @@ public class PostDetailLandlordActivity extends AppCompatActivity implements Ima
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
         if (id == android.R.id.home) {
-            onBackPressed(); // Xử lý nút back trên toolbar
+            onBackPressed();
             return true;
         } else if (id == R.id.action_edit_post) {
-            navigateToEdit();
+            navigateToEdit(); // Gọi hàm đã được sửa đổi
             return true;
         }
-        // Thêm xử lý cho item "more options" nếu có
         return super.onOptionsItemSelected(item);
     }
 
     // --- Navigation ---
     private void navigateToEdit() {
-        if (currentPost != null) {
-//            Intent intent = new Intent(PostDetailLandlordActivity.this, EditPostActivity.class);
-//            intent.putExtra("POST_ID", currentPost.getPostId());
-//            startActivity(intent);
+        if (currentPost != null && postId != null && !postId.isEmpty()) { // Thêm kiểm tra postId nữa cho chắc
+            Intent intent = new Intent(PostDetailLandlordActivity.this, EditPostActivity.class);
+            intent.putExtra("POST_ID", postId); // Truyền postId
+
+            // *** SỬ DỤNG LAUNCHER ĐỂ BẮT KẾT QUẢ ***
+            Log.d(TAG, "Launching EditPostActivity for postId: " + postId);
+            editPostLauncher.launch(intent);
+            // startActivity(intent); // Bỏ dòng này
+            // ***************************************
+
         } else {
             Toast.makeText(this, "Không thể lấy thông tin tin đăng để sửa.", Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Cannot navigate to edit: currentPost or postId is null/empty.");
         }
     }
 

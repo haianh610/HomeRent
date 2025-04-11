@@ -31,6 +31,8 @@
         <activity
             android:name=".activity.landlord.CreatePostActivity"
             android:exported="false" />
+        <activity android:name=".activity.landlord.EditPostActivity"
+            android:exported="false" />
         <activity
             android:name=".activity.landlord.PostDetailLandlordActivity"
             android:exported="false" />

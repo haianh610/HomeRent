@@ -132,7 +132,7 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
     private FirebaseStorage storage;
     private FirebaseUser currentUser;
 
-    private ArrayList<Uri> selectedImageUris = new ArrayList<>();
+    private ArrayList<Object> selectedImageItems = new ArrayList<>();
     private SelectedImageAdapter selectedImageAdapter;
     private ActivityResultLauncher<Intent> imagePickerLauncher;
 
@@ -224,13 +224,13 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
     }
 
     private void setupRecyclerView() {
-        selectedImageAdapter = new SelectedImageAdapter(this, selectedImageUris, this);
+        selectedImageAdapter = new SelectedImageAdapter(this, selectedImageItems, this);
         rvSelectedImages.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)); // Đổi thành VERTICAL
         rvSelectedImages.setAdapter(selectedImageAdapter);
 
         // *** THÊM PHẦN NÀY ĐỂ KÍCH HOẠT KÉO THẢ ***
         // 1. Tạo Callback, truyền adapter và danh sách ảnh vào
-        ItemTouchHelper.Callback callback = new ImageTouchHelperCallback(selectedImageAdapter, selectedImageUris);
+        ItemTouchHelper.Callback callback = new ImageTouchHelperCallback(selectedImageAdapter, selectedImageItems);
         // 2. Tạo ItemTouchHelper từ Callback
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(callback);
         // 3. Gắn ItemTouchHelper vào RecyclerView
@@ -400,29 +400,44 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
                     if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                        // *** SỬ DỤNG selectedImageItems ***
+                        int currentImageCount = selectedImageItems.size();
                         if (result.getData().getClipData() != null) {
-                            // Multiple images selected
                             int count = result.getData().getClipData().getItemCount();
-                            int currentImageCount = selectedImageUris.size();
                             for (int i = 0; i < count && currentImageCount + i < MAX_IMAGES; i++) {
                                 Uri imageUri = result.getData().getClipData().getItemAt(i).getUri();
-                                selectedImageUris.add(imageUri);
+                                // Thêm Uri vào List<Object>
+                                if (!isUriAlreadyAdded(imageUri)) { // Kiểm tra trùng lặp nếu cần
+                                    selectedImageItems.add(imageUri);
+                                }
                             }
                         } else if (result.getData().getData() != null) {
-                            // Single image selected
-                            if (selectedImageUris.size() < MAX_IMAGES) {
+                            if (currentImageCount < MAX_IMAGES) {
                                 Uri imageUri = result.getData().getData();
-                                selectedImageUris.add(imageUri);
+                                if (!isUriAlreadyAdded(imageUri)) {
+                                    selectedImageItems.add(imageUri);
+                                }
                             }
                         }
                         selectedImageAdapter.notifyDataSetChanged();
-                        checkImageLimit(); // Disable button if limit reached
+                        checkImageLimit();
                     }
                 });
     }
 
+    // Hàm này dùng để kiểm tra trùng lặp nếu cần (giữ nguyên)
+    private boolean isUriAlreadyAdded(Uri uri) {
+        for (Object item : selectedImageItems) {
+            if (item instanceof Uri && item.equals(uri)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     private void checkImageLimit() {
-        btnAddImage.setEnabled(selectedImageUris.size() < MAX_IMAGES);
+        btnAddImage.setEnabled(selectedImageItems.size() < MAX_IMAGES);
         if (!btnAddImage.isEnabled()) {
             Toast.makeText(this, "Đã đạt giới hạn " + MAX_IMAGES + " ảnh", Toast.LENGTH_SHORT).show();
         }
@@ -430,10 +445,10 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
 
     @Override
     public void onImageRemoved(int position) {
-        if (position >= 0 && position < selectedImageUris.size()) {
-            selectedImageUris.remove(position);
+        if (position >= 0 && position < selectedImageItems.size()) {
+            selectedImageItems.remove(position);
             selectedImageAdapter.notifyItemRemoved(position);
-            selectedImageAdapter.notifyItemRangeChanged(position, selectedImageUris.size()); // Update indices
+            selectedImageAdapter.notifyItemRangeChanged(position, selectedImageItems.size()); // Update indices
             checkImageLimit(); // Re-enable button if below limit
         }
     }
@@ -537,21 +552,57 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
 
     // --- Saving Logic ---
 
+    // --- Saving Logic ---
+
     private void attemptSavePost() {
-        // --- Simple Validation ---
         if (!validateInput()) {
             return;
         }
-
-        // --- Start Saving Process ---
         progressBarCreatePost.setVisibility(View.VISIBLE);
         btnSavePost.setEnabled(false);
 
-        if (!selectedImageUris.isEmpty()) {
-            uploadImagesAndSavePost();
+        // *** LỌC RA CÁC URI TỪ LIST OBJECT TRƯỚC KHI UPLOAD ***
+        List<Uri> urisToUpload = selectedImageItems.stream()
+                .filter(item -> item instanceof Uri)
+                .map(item -> (Uri) item)
+                .collect(Collectors.toList());
+
+        if (!urisToUpload.isEmpty()) {
+            uploadImagesAndSavePost(urisToUpload); // Truyền List<Uri> đã lọc
         } else {
-            // Save post without images
-            saveDataToFirestore(new ArrayList<>()); // Pass empty list
+            saveDataToFirestore(new ArrayList<>()); // Lưu không có ảnh
+        }
+    }
+
+    // *** THAY ĐỔI THAM SỐ CỦA HÀM NÀY ĐỂ NHẬN List<Uri> ***
+    private void uploadImagesAndSavePost(List<Uri> urisToUpload) {
+        List<String> downloadUrls = new ArrayList<>();
+        AtomicInteger uploadCounter = new AtomicInteger(0);
+        int totalImages = urisToUpload.size(); // Dùng size của list đã lọc
+
+        StorageReference storageRef = storage.getReference().child("post_images");
+
+        for (Uri imageUri : urisToUpload) { // Lặp qua list Uri đã lọc
+            String filename = UUID.randomUUID().toString() + ".jpg";
+            StorageReference fileRef = storageRef.child(filename);
+            UploadTask uploadTask = fileRef.putFile(imageUri);
+
+            uploadTask.continueWithTask(task -> {
+                if (!task.isSuccessful()) { throw task.getException(); }
+                return fileRef.getDownloadUrl();
+            }).addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    Uri downloadUri = task.getResult();
+                    downloadUrls.add(downloadUri.toString());
+                } else {
+                    Log.w(TAG, "Image upload failed: " + imageUri.toString(), task.getException());
+                    Toast.makeText(CreatePostActivity.this, "Lỗi tải lên ảnh: " + imageUri.getLastPathSegment(), Toast.LENGTH_SHORT).show();
+                }
+
+                if (uploadCounter.incrementAndGet() == totalImages) {
+                    saveDataToFirestore(downloadUrls);
+                }
+            });
         }
     }
 
@@ -610,53 +661,6 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
     private void showValidationError(TextInputEditText editText, String errorMsg) {
         editText.setError(errorMsg);
         editText.requestFocus();
-    }
-
-
-    private void uploadImagesAndSavePost() {
-        List<String> downloadUrls = new ArrayList<>();
-        AtomicInteger uploadCounter = new AtomicInteger(0);
-        int totalImages = selectedImageUris.size();
-
-        StorageReference storageRef = storage.getReference().child("post_images");
-
-        for (Uri imageUri : selectedImageUris) {
-            // Create unique filename
-            String filename = UUID.randomUUID().toString() + ".jpg";
-            StorageReference fileRef = storageRef.child(filename);
-
-            UploadTask uploadTask = fileRef.putFile(imageUri);
-
-            uploadTask.continueWithTask(task -> {
-                if (!task.isSuccessful()) {
-                    throw task.getException();
-                }
-                // Continue with the task to get the download URL
-                return fileRef.getDownloadUrl();
-            }).addOnCompleteListener(task -> {
-                if (task.isSuccessful()) {
-                    Uri downloadUri = task.getResult();
-                    downloadUrls.add(downloadUri.toString());
-                    Log.d(TAG, "Image uploaded: " + downloadUri.toString());
-                } else {
-                    // Handle failures
-                    Log.w(TAG, "Image upload failed: " + imageUri.toString(), task.getException());
-                    // Optionally show a message for the failed image
-                    Toast.makeText(CreatePostActivity.this, "Lỗi tải lên ảnh: " + imageUri.getLastPathSegment(), Toast.LENGTH_SHORT).show();
-                }
-
-                // Check if all uploads are complete (success or failure)
-                if (uploadCounter.incrementAndGet() == totalImages) {
-                    // All uploads finished, proceed to save data even if some failed
-                    Log.d(TAG, "All image uploads finished. URLs obtained: " + downloadUrls.size());
-                    if (downloadUrls.size() < totalImages) {
-                        // Inform user that some images failed but we proceed
-                        Toast.makeText(this, "Một số ảnh tải lên thất bại, bài đăng vẫn sẽ được lưu.", Toast.LENGTH_LONG).show();
-                    }
-                    saveDataToFirestore(downloadUrls);
-                }
-            });
-        }
     }
 
 

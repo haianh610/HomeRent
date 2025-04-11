@@ -22,6 +22,7 @@ import com.example.homerent.R;
 //import com.example.homerent.activity.landlord.EditPostActivity;
 //import com.example.homerent.activity.common.PostDetailLandlordActivity;
 import com.example.homerent.activity.landlord.CreatePostActivity;
+import com.example.homerent.activity.landlord.EditPostActivity;
 import com.example.homerent.activity.landlord.PostDetailLandlordActivity;
 import com.example.homerent.adapter.PostManagementAdapter;
 import com.example.homerent.model.Post;
@@ -233,9 +234,9 @@ public class PostManagementFragment extends Fragment implements PostManagementAd
     public void onEditClick(int position) {
         if (!isAdded() || position < 0 || position >= postList.size()) return;
         Post selectedPost = postList.get(position);
-//        Intent intent = new Intent(getActivity(), EditPostActivity.class);
-//        intent.putExtra("POST_ID", selectedPost.getPostId());
-//        startActivity(intent);
+        Intent intent = new Intent(getActivity(), EditPostActivity.class);
+        intent.putExtra("POST_ID", selectedPost.getPostId());
+        startActivity(intent);
         Log.d(TAG, "Edit post: " + selectedPost.getTitle());
     }
 

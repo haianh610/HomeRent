@@ -14,23 +14,25 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.example.homerent.R;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class SelectedImageAdapter extends RecyclerView.Adapter<SelectedImageAdapter.ImageViewHolder> {
 
     private Context context;
-    private List<Uri> imageUris;
+    private List<Object> imageItems;
     private OnImageRemoveListener listener;
 
     public interface OnImageRemoveListener {
         void onImageRemoved(int position);
     }
 
-    public SelectedImageAdapter(Context context, List<Uri> imageUris, OnImageRemoveListener listener) {
+    public SelectedImageAdapter(Context context, List<Object> imageItems, OnImageRemoveListener listener) {
         this.context = context;
-        this.imageUris = imageUris;
+        this.imageItems = imageItems;
         this.listener = listener;
     }
+
 
     @NonNull
     @Override
@@ -41,18 +43,35 @@ public class SelectedImageAdapter extends RecyclerView.Adapter<SelectedImageAdap
 
     @Override
     public void onBindViewHolder(@NonNull ImageViewHolder holder, int position) {
-        Uri imageUri = imageUris.get(position);
-        Glide.with(context)
-                .load(imageUri)
-                .placeholder(R.drawable.ic_placeholder_image)
-                .error(R.drawable.ic_image_error)
-                .centerCrop()
-                .into(holder.imageView);
+        Object item = imageItems.get(position);
+
+        // Check the type of the item and load accordingly
+        if (item instanceof Uri) {
+            // It's a new image selected from the device
+            Glide.with(context)
+                    .load((Uri) item)
+                    .placeholder(R.drawable.ic_placeholder_image)
+                    .error(R.drawable.ic_image_error)
+                    .centerCrop()
+                    .into(holder.imageView);
+        } else if (item instanceof String) {
+            // It's an existing image URL from Firebase Storage
+            Glide.with(context)
+                    .load((String) item)
+                    .placeholder(R.drawable.ic_placeholder_image)
+                    .error(R.drawable.ic_image_error)
+                    .centerCrop()
+                    .into(holder.imageView);
+        } else {
+            // Handle unexpected type or show placeholder
+            holder.imageView.setImageResource(R.drawable.ic_image_error);
+        }
     }
 
     @Override
     public int getItemCount() {
-        return imageUris.size();
+        // Use the new list
+        return imageItems.size();
     }
 
     static class ImageViewHolder extends RecyclerView.ViewHolder {
