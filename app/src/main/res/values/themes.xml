@@ -11,4 +11,11 @@
     </style>
 
     <style name="Theme.HomeRent" parent="Base.Theme.HomeRent" />
+    <style name="Theme.HomeRent.FullScreen" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Optional: customize status bar/navigation bar appearance for fullscreen -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- <item name="android:windowLightStatusBar">false</item> -->
+        <!-- <item name="android:windowLightNavigationBar">false</item> -->
+    </style>
 </resources>

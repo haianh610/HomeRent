@@ -90,4 +90,5 @@ dependencies {
     implementation ("com.github.bumptech.glide:glide:4.16.0")
     implementation ("de.hdodenhof:circleimageview:3.1.0") // Check for the latest version
     implementation ("com.google.code.gson:gson:2.10.1") // Check for the latest version
+    implementation ("com.github.chrisbanes:PhotoView:2.0.0")
 }

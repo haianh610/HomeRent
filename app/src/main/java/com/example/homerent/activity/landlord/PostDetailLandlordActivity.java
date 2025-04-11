@@ -11,13 +11,18 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.core.widget.NestedScrollView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.bumptech.glide.Glide;
+import com.example.homerent.FullScreenImageViewerActivity;
 import com.example.homerent.R; // Thay R
 //import com.example.homerent.activity.landlord.EditPostActivity;
 import com.example.homerent.adapter.ImageSliderAdapter;
@@ -32,6 +37,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -39,7 +45,7 @@ import java.util.Objects;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
-public class PostDetailLandlordActivity extends AppCompatActivity {
+public class PostDetailLandlordActivity extends AppCompatActivity implements ImageSliderAdapter.OnItemClickListener {
 
     private static final String TAG = "PostDetailLandlordActivity";
 
@@ -68,14 +74,25 @@ public class PostDetailLandlordActivity extends AppCompatActivity {
     private String postId;
     private Post currentPost;
     private ImageSliderAdapter imageSliderAdapter;
+    private List<String> postImageUrls = new ArrayList<>();
 
     private SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
     private NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        EdgeToEdge.enable(this);
+        //-----------------------------------------
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_post_detail_landlord);
+        // --- Xử lý WindowInsets cho PostDetailActivity ---
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.layout_post_detail_landlord), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            // Chỉ áp padding top cho root layout để AppBar đẩy xuống
+            v.setPadding(v.getPaddingLeft(), systemBars.top, v.getPaddingRight(), v.getPaddingBottom());
+            // NestedScrollView và Button đã có cơ chế riêng để tránh bottom bar
+            return insets;
+        });
 
         db = FirebaseFirestore.getInstance();
         mAuth = FirebaseAuth.getInstance();
@@ -108,7 +125,7 @@ public class PostDetailLandlordActivity extends AppCompatActivity {
         tvLandlordName = findViewById(R.id.tvLandlordName);
         btnEditPostBottom = findViewById(R.id.btnEditPostBottom);
         progressBarDetail = findViewById(R.id.progressBarDetail);
-        scrollViewContent = findViewById(R.id.LandlorđetailscrollView);
+        scrollViewContent = findViewById(R.id.LandlordDetailScrollView);
 
         // Setup Toolbar
         setSupportActionBar(toolbar);
@@ -200,23 +217,21 @@ public class PostDetailLandlordActivity extends AppCompatActivity {
             tvPostingDateDetail.setText("Tin đăng ngày: N/A");
         }
 
-        // Setup ViewPager2
-        List<String> images = currentPost.getImageUrls() != null ? currentPost.getImageUrls() : Collections.emptyList();
-        if (images.isEmpty()) {
-            // Có thể ẩn ViewPager hoặc hiển thị ảnh mặc định
+        postImageUrls = currentPost.getImageUrls() != null ? currentPost.getImageUrls() : Collections.emptyList(); // Gán vào biến class
+        if (postImageUrls.isEmpty()) {
             viewPagerImages.setVisibility(View.GONE);
             tvImageCounter.setVisibility(View.GONE);
         } else {
             viewPagerImages.setVisibility(View.VISIBLE);
-            tvImageCounter.setVisibility(View.VISIBLE);
-            imageSliderAdapter = new ImageSliderAdapter(this, images);
+            // *** Khởi tạo adapter với listener là this ***
+            imageSliderAdapter = new ImageSliderAdapter(this, postImageUrls, this);
             viewPagerImages.setAdapter(imageSliderAdapter);
-            updateImageCounter(images.size()); // Cập nhật counter ban đầu
+            updateImageCounter(postImageUrls.size());
             viewPagerImages.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
                 @Override
                 public void onPageSelected(int position) {
                     super.onPageSelected(position);
-                    updateImageCounter(images.size());
+                    updateImageCounter(postImageUrls.size());
                 }
             });
         }
@@ -229,6 +244,18 @@ public class PostDetailLandlordActivity extends AppCompatActivity {
             tvImageCounter.setVisibility(View.VISIBLE);
         } else {
             tvImageCounter.setVisibility(View.GONE);
+        }
+    }
+
+    // *** Implement phương thức của OnItemClickListener ***
+    @Override
+    public void onItemClick(int position) {
+        if (postImageUrls != null && !postImageUrls.isEmpty()) {
+            Intent intent = new Intent(this, FullScreenImageViewerActivity.class);
+            // Chú ý: Truyền ArrayList<String>
+            intent.putStringArrayListExtra(FullScreenImageViewerActivity.EXTRA_IMAGE_URLS, new ArrayList<>(postImageUrls));
+            intent.putExtra(FullScreenImageViewerActivity.EXTRA_START_POSITION, position);
+            startActivity(intent);
         }
     }
 

@@ -21,8 +21,9 @@
         android:theme="@style/Theme.HomeRent"
         tools:targetApi="31">
         <activity
-            android:name=".fragment.tenant.PostViewFragment"
+            android:name=".FullScreenImageViewerActivity"
             android:exported="false" />
+
         <activity
             android:name=".activity.tenant.TenantHomeActivity"
             android:exported="false"
