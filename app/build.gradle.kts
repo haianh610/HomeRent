@@ -81,6 +81,7 @@ dependencies {
     implementation(libs.navigation.ui) // Check for latest version
     // implementation 'com.google.android.gms:play-services-location:21.2.0'
 
+    implementation ("com.google.code.gson:gson:2.12.1")
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
