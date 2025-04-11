@@ -1,99 +1,142 @@
-package com.example.homerent.activity.landlord; // Thay đổi package
+package com.example.homerent.activity.landlord;
 
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.MenuItem;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
-import com.example.homerent.R; // Thay R
-import com.example.homerent.fragment.landlord.AccountFragment;
+import com.example.homerent.ChangeAccountActivity;
+import com.example.homerent.R;
+import com.example.homerent.fragment.landlord.FragmentAccount;
 import com.example.homerent.fragment.landlord.PostManagementFragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.navigation.NavigationBarView; // Quan trọng: Import đúng
+import com.google.android.material.navigation.NavigationBarView;
+
+import java.io.IOException;
 
 public class LandlordHomeActivity extends AppCompatActivity {
 
     private BottomNavigationView bottomNavigationView;
-    private Toolbar toolbar;
+    public static final int MY_REQUEST_CODE = 10;
+
+    // Khởi tạo FragmentChangeAccount để truy cập được setImageUri() và setBitmapImage()
+    private ChangeAccountActivity fragmentChangeAccount;
+
+    // Xử lý chọn ảnh từ gallery
+    private final ActivityResultLauncher<Intent> mActivityResultLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback<ActivityResult>() {
+                @Override
+                public void onActivityResult(ActivityResult result) {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        Uri uri = result.getData().getData();
+                        if (fragmentChangeAccount != null) {
+                            fragmentChangeAccount.setImageUri(uri);
+                            try {
+                                Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), uri);
+                                fragmentChangeAccount.setBitmapImage(bitmap);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_landlord_home);
 
-        EdgeToEdge.enable(this); // Bật chế độ Edge-to-Edge
+        // Edge to edge layout
+        EdgeToEdge.enable(this);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.layout_landlord_home), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
         bottomNavigationView = findViewById(R.id.bottomNavigationViewLandlord);
 
-        // Load fragment mặc định khi Activity khởi tạo
+        // Load fragment mặc định
         if (savedInstanceState == null) {
             loadFragment(new PostManagementFragment());
-            // Optional: Set title cho toolbar nếu dùng
-            if (getSupportActionBar() != null) {
-                getSupportActionBar().setTitle("Tin đăng");
-            }
         }
 
-
-        // Xử lý sự kiện khi chọn item trên BottomNavigationView
+        // Xử lý chuyển tab
         bottomNavigationView.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 Fragment selectedFragment = null;
-                String title = getString(R.string.app_name); // Title mặc định
-
                 int itemId = item.getItemId();
                 if (itemId == R.id.navigation_posts) {
                     selectedFragment = new PostManagementFragment();
-                    title = "Tin đăng";
                 } else if (itemId == R.id.navigation_account) {
-                    selectedFragment = new AccountFragment();
-                    title = "Tài khoản";
+                    selectedFragment = new FragmentAccount();
                 }
 
                 if (selectedFragment != null) {
                     loadFragment(selectedFragment);
-                    // Optional: Cập nhật title Toolbar
-                    if (getSupportActionBar() != null) {
-                        getSupportActionBar().setTitle(title);
-                    }
-                    return true; // Return true để hiển thị item được chọn
+                    return true;
                 }
                 return false;
             }
         });
-
-        // Optional: Đặt item được chọn mặc định (nếu cần)
-        // bottomNavigationView.setSelectedItemId(R.id.navigation_posts);
     }
 
-    // Hàm để thay thế Fragment trong container
+    // Hàm load fragment
     private void loadFragment(Fragment fragment) {
-        FragmentManager fragmentManager = getSupportFragmentManager();
-        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
-        fragmentTransaction.replace(R.id.fragmentContainerLandlord, fragment);
-        // fragmentTransaction.addToBackStack(null); // Optional: Thêm vào back stack nếu muốn nút back quay lại fragment trước đó
-        fragmentTransaction.commit();
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        transaction.replace(R.id.fragmentContainerLandlord, fragment);
+        transaction.commit();
     }
 
-    // Optional: Hàm để điều hướng ra màn hình Login nếu cần (gọi từ fragment)
-    // public void navigateToLogin() {
-    //     Intent intent = new Intent(this, LoginActivity.class);
-    //     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-    //     startActivity(intent);
-    //     finish();
-    // }
+    // Mở gallery chọn ảnh
+    public void openGallery(ChangeAccountActivity fragment) {
+        this.fragmentChangeAccount = fragment; // Lưu lại instance đang dùng
+        Intent intent = new Intent(Intent.ACTION_PICK);
+        intent.setType("image/*");
+        mActivityResultLauncher.launch(Intent.createChooser(intent, "Chọn ảnh đại diện"));
+    }
+
+    // Cấp quyền READ_EXTERNAL_STORAGE
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == MY_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (fragmentChangeAccount != null) {
+                    openGallery(fragmentChangeAccount);
+                }
+            } else {
+                Toast.makeText(this, "Vui lòng cấp quyền truy cập ảnh", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    // Hàm để FragmentAccount cập nhật lại thông tin sau khi chỉnh sửa
+    public void reloadUserInfo() {
+        Fragment currentFragment = getSupportFragmentManager().findFragmentById(R.id.fragmentContainerLandlord);
+        if (currentFragment instanceof FragmentAccount) {
+            ((FragmentAccount) currentFragment).showUserInformation();
+        }
+    }
 }
