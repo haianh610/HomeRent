@@ -14,14 +14,17 @@
         android:layout_height="match_parent"
         android:padding="20dp">
 
-        <ImageView
+        <!-- THAY ĐỔI TAG VÀ THÊM shapeAppearanceOverlay -->
+        <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/imageViewPostManage"
             android:layout_width="100dp"
             android:layout_height="100dp"
             android:scaleType="centerCrop"
             android:src="@drawable/ic_placeholder_image"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent" /> <!-- Thay bằng placeholder của bạn -->
+            app:layout_constraintStart_toStartOf="parent"
+            app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.CornerSize8dp" /> <!-- Hoặc corner size khác nếu muốn -->
+        <!-- KẾT THÚC THAY ĐỔI -->
 
         <TextView
             android:id="@+id/textViewTitleManage"
@@ -56,11 +59,12 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
             android:ellipsize="end"
-            android:maxLines="1"
+            android:maxLines="2"
             android:textSize="12sp"
             app:layout_constraintStart_toEndOf="@+id/imageView"
             app:layout_constraintTop_toTopOf="@+id/imageView"
-            tools:text="Tương mai, Hoàng Mai, Hà Nội" />
+            app:layout_constraintEnd_toEndOf="parent"
+        tools:text="Tương mai, Hoàng Mai, Hà Nội" />
 
         <TextView
             android:id="@+id/textViewDateManage"
@@ -73,7 +77,6 @@
             app:layout_constraintStart_toEndOf="@+id/imageViewPostManage"
             tools:text="07/04/2025" />
 
-        <!-- Optional: Buttons for Edit/Delete -->
         <ImageButton
             android:id="@+id/buttonDeletePost"
             android:layout_width="36dp"

@@ -15,9 +15,11 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -25,9 +27,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.homerent.ImageTouchHelperCallback;
 import com.example.homerent.R;
 import com.example.homerent.adapter.SelectedImageAdapter;
 import com.example.homerent.model.Post;
@@ -56,6 +63,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import android.widget.AdapterView; // Import AdapterView
@@ -87,6 +95,8 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
             etBedrooms, etFloors, etContactName, etContactEmail, etContactPhone,
             etPostTitle, etPostDescription;
 
+    private RadioGroup rgPostDuration;
+
     private AutoCompleteTextView actProvince, actDistrict, actCommune;
     private TextInputLayout tilProvince, tilDistrict, tilCommune; // Để bật/tắt dễ hơn
 
@@ -106,7 +116,7 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
     private District selectedDistrict;
     private Commune selectedCommune;
 
-    private Button btnLocateAddress, btnAddImage, btnSavePost, btnStartDate, btnEndDate;
+    private Button btnLocateAddress, btnAddImage, btnSavePost;
     private TextView tvSelectedDates;
     private RecyclerView rvSelectedImages;
     private ProgressBar progressBarCreatePost;
@@ -126,15 +136,19 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
     private SelectedImageAdapter selectedImageAdapter;
     private ActivityResultLauncher<Intent> imagePickerLauncher;
 
-    private Timestamp startDateTimestamp;
-    private Timestamp endDateTimestamp;
+
     private SimpleDateFormat displayDateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_create_post);
-
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.layout_create_post), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right,0);
+            return insets;
+        });
         // Firebase Init
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
@@ -206,15 +220,22 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
         btnSavePost = findViewById(R.id.btnSavePost);
         rvSelectedImages = findViewById(R.id.rvSelectedImages);
         progressBarCreatePost = findViewById(R.id.progressBarCreatePost);
-        btnStartDate = findViewById(R.id.btnStartDate);
-        btnEndDate = findViewById(R.id.btnEndDate);
-        tvSelectedDates = findViewById(R.id.tvSelectedDates);
+        rgPostDuration = findViewById(R.id.rgPostDuration);
     }
 
     private void setupRecyclerView() {
         selectedImageAdapter = new SelectedImageAdapter(this, selectedImageUris, this);
-        rvSelectedImages.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        rvSelectedImages.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)); // Đổi thành VERTICAL
         rvSelectedImages.setAdapter(selectedImageAdapter);
+
+        // *** THÊM PHẦN NÀY ĐỂ KÍCH HOẠT KÉO THẢ ***
+        // 1. Tạo Callback, truyền adapter và danh sách ảnh vào
+        ItemTouchHelper.Callback callback = new ImageTouchHelperCallback(selectedImageAdapter, selectedImageUris);
+        // 2. Tạo ItemTouchHelper từ Callback
+        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(callback);
+        // 3. Gắn ItemTouchHelper vào RecyclerView
+        itemTouchHelper.attachToRecyclerView(rvSelectedImages);
+        // ******************************************
     }
 
     private void loadAddressData() {
@@ -421,60 +442,11 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
         btnLocateAddress.setOnClickListener(v -> geocodeAddress());
         btnAddImage.setOnClickListener(v -> openImagePicker());
         btnSavePost.setOnClickListener(v -> attemptSavePost());
-        btnStartDate.setOnClickListener(v -> showDatePickerDialog(true));
-        btnEndDate.setOnClickListener(v -> showDatePickerDialog(false));
     }
 
-    private void showDatePickerDialog(boolean isStartDate) {
-        Calendar calendar = Calendar.getInstance();
-        // Use existing date if available, otherwise use today
-        Timestamp initialTimestamp = isStartDate ? startDateTimestamp : endDateTimestamp;
-        if(initialTimestamp != null) {
-            calendar.setTime(initialTimestamp.toDate());
-        }
 
-        DatePickerDialog datePickerDialog = new DatePickerDialog(
-                this,
-                (view, year, month, dayOfMonth) -> {
-                    Calendar selectedCalendar = Calendar.getInstance();
-                    selectedCalendar.set(year, month, dayOfMonth,0,0,0); // Set time to start of day
-                    selectedCalendar.set(Calendar.MILLISECOND, 0);
-                    Date selectedDate = selectedCalendar.getTime();
 
-                    if (isStartDate) {
-                        // Validate start date is not after end date
-                        if (endDateTimestamp != null && selectedDate.after(endDateTimestamp.toDate())) {
-                            Toast.makeText(this, "Ngày bắt đầu không thể sau ngày kết thúc", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                        startDateTimestamp = new Timestamp(selectedDate);
-                    } else {
-                        // Validate end date is not before start date
-                        if (startDateTimestamp != null && selectedDate.before(startDateTimestamp.toDate())) {
-                            Toast.makeText(this, "Ngày kết thúc không thể trước ngày bắt đầu", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                        endDateTimestamp = new Timestamp(selectedDate);
-                    }
-                    updateSelectedDatesText();
-                },
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH)
-        );
-        // Optional: Set min/max dates for the picker
-        // if(isStartDate && endDateTimestamp != null) datePickerDialog.getDatePicker().setMaxDate(endDateTimestamp.toDate().getTime());
-        // if(!isStartDate && startDateTimestamp != null) datePickerDialog.getDatePicker().setMinDate(startDateTimestamp.toDate().getTime());
 
-        datePickerDialog.show();
-    }
-
-    private void updateSelectedDatesText() {
-        String startStr = startDateTimestamp != null ? displayDateFormat.format(startDateTimestamp.toDate()) : "Chưa chọn";
-        String endStr = endDateTimestamp != null ? displayDateFormat.format(endDateTimestamp.toDate()) : "Chưa chọn";
-        tvSelectedDates.setText(String.format("%s - %s", startStr, endStr));
-        tvSelectedDates.setVisibility(View.VISIBLE);
-    }
 
     private void prefillContactInfo() {
         // Lấy thông tin từ profile user đã lưu trong Firestore
@@ -615,8 +587,13 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
         // ... (Các kiểm tra khác giữ nguyên: area, price, bedrooms, floors, title, description, dates, parse số)
         if (TextUtils.isEmpty(etArea.getText())) { showValidationError(etArea, "Vui lòng nhập diện tích"); return false; } else {etArea.setError(null);}
         // ... thêm clear error cho các trường khác
-        if (startDateTimestamp == null) { Toast.makeText(this, "Vui lòng chọn ngày bắt đầu", Toast.LENGTH_SHORT).show(); return false;}
-        if (endDateTimestamp == null) { Toast.makeText(this, "Vui lòng chọn ngày kết thúc", Toast.LENGTH_SHORT).show(); return false;}
+
+        // *** Kiểm tra RadioGroup Thời hạn ***
+        if (rgPostDuration.getCheckedRadioButtonId() == -1) { // -1 nghĩa là chưa có cái nào được chọn
+            Toast.makeText(this, "Vui lòng chọn thời hạn đăng tin", Toast.LENGTH_SHORT).show();
+            rgPostDuration.requestFocus(); // Focus vào RadioGroup
+            return false;
+        }
         try {
             Double.parseDouble(etArea.getText().toString());
             Long.parseLong(etPrice.getText().toString());
@@ -689,6 +666,32 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
             return;
         }
 
+        // --- Tính toán Ngày bắt đầu và Kết thúc ---
+        Timestamp startDate = Timestamp.now(); // Ngày bắt đầu là hiện tại
+        int selectedDurationId = rgPostDuration.getCheckedRadioButtonId();
+        int durationDays = 0;
+
+        if (selectedDurationId == R.id.rbDuration10) {
+            durationDays = 10;
+        } else if (selectedDurationId == R.id.rbDuration20) {
+            durationDays = 20;
+        } else if (selectedDurationId == R.id.rbDuration30) {
+            durationDays = 30;
+        } else {
+            // Lỗi này không nên xảy ra nếu validation hoạt động đúng
+            showErrorAndReset("Lỗi không xác định được thời hạn đăng.");
+            return;
+        }
+
+        // Tính ngày kết thúc
+        long startTimeMillis = startDate.toDate().getTime();
+
+        long durationMillis = TimeUnit.DAYS.toMillis(durationDays);
+
+        long endTimeMillis = startTimeMillis + durationMillis;
+        Timestamp endDate = new Timestamp(new Date(endTimeMillis));
+        // ------------------------------------------
+
         Post newPost = new Post();
         newPost.setUserId(currentUser.getUid());
         newPost.setTitle(etPostTitle.getText().toString().trim());
@@ -712,11 +715,13 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
             return;
         }
         newPost.setImageUrls(imageUrls);
-        newPost.setTimestamp(Timestamp.now());
+        newPost.setTimestamp(Timestamp.now()); // Thời gian tạo/cập nhật post
         newPost.setAvailable(true);
         newPost.setViewCount(0);
-        newPost.setStartDate(startDateTimestamp);
-        newPost.setEndDate(endDateTimestamp);
+        // *** Gán ngày bắt đầu và kết thúc đã tính toán ***
+        newPost.setStartDate(startDate);
+        newPost.setEndDate(endDate);
+        // ***------------------------------------***
         if (currentLatLng != null) {
             newPost.setLatitude(currentLatLng.latitude);
             newPost.setLongitude(currentLatLng.longitude);

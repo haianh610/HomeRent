@@ -4,6 +4,11 @@
         <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
     </style>
+    <!-- Style cho bo góc ImageView -->
+    <style name="ShapeAppearanceOverlay.App.CornerSize8dp" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">8dp</item> <!-- Thay đổi giá trị này nếu muốn bo góc khác -->
+    </style>
 
     <style name="Theme.HomeRent" parent="Base.Theme.HomeRent" />
 </resources>
