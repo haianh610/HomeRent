@@ -4,6 +4,18 @@
         <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
     </style>
+    <!-- Style cho bo góc ImageView -->
+    <style name="ShapeAppearanceOverlay.App.CornerSize8dp" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">8dp</item> <!-- Thay đổi giá trị này nếu muốn bo góc khác -->
+    </style>
 
     <style name="Theme.HomeRent" parent="Base.Theme.HomeRent" />
+    <style name="Theme.HomeRent.FullScreen" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Optional: customize status bar/navigation bar appearance for fullscreen -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- <item name="android:windowLightStatusBar">false</item> -->
+        <!-- <item name="android:windowLightNavigationBar">false</item> -->
+    </style>
 </resources>

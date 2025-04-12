@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/fullscreen_content"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground"
+    tools:context=".FullScreenImageViewerActivity"> <!-- Hoặc package phù hợp -->
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPagerFullScreen"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Nút đóng (optional, vì có thể dùng nút back hệ thống) -->
+    <ImageButton
+        android:id="@+id/buttonCloseFullScreen"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_close"
+        app:tint="?attr/colorOnSurface"
+        android:contentDescription="Đóng" />
+
+    <!-- Counter ảnh (optional) -->
+    <TextView
+        android:id="@+id/tvImageCounterFullScreen"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="24dp"
+        android:background="#80000000"
+        android:paddingStart="12dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="6dp"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        tools:text="1 / 5" />
+
+</FrameLayout>

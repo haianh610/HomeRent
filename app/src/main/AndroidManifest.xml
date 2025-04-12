@@ -24,11 +24,16 @@
             android:name=".activity.tenant.PostDetailTenantActivity"
             android:exported="false" />
         <activity
+            android:name=".FullScreenImageViewerActivity"
+            android:exported="false" />
+        <activity
             android:name=".activity.tenant.TenantHomeActivity"
             android:exported="false"
             android:theme="@style/Theme.HomeRent" />
         <activity
             android:name=".activity.landlord.CreatePostActivity"
+            android:exported="false" />
+        <activity android:name=".activity.landlord.EditPostActivity"
             android:exported="false" />
         <activity
             android:name=".activity.landlord.PostDetailLandlordActivity"

@@ -15,9 +15,11 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -25,9 +27,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.homerent.ImageTouchHelperCallback;
 import com.example.homerent.R;
 import com.example.homerent.adapter.SelectedImageAdapter;
 import com.example.homerent.model.Post;
@@ -49,7 +56,6 @@ import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
 import java.io.IOException;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -57,7 +63,26 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import android.widget.AdapterView; // Import AdapterView
+import android.widget.ArrayAdapter; // Import ArrayAdapter
+import android.widget.AutoCompleteTextView;
+import com.google.android.material.textfield.TextInputLayout;
+
+import com.example.homerent.model.AddressData;
+import com.example.homerent.model.Commune;
+import com.example.homerent.model.District;
+import com.example.homerent.model.Province;
+import com.google.gson.Gson;
+
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.stream.Collectors; // Cần Java 8+
 
 public class CreatePostActivity extends AppCompatActivity implements OnMapReadyCallback, SelectedImageAdapter.OnImageRemoveListener {
 
@@ -66,10 +91,32 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
     private Toolbar toolbar;
-    private TextInputEditText etCity, etDistrict, etWard, etAddressDetail, etArea, etPrice,
+    private TextInputEditText etAddressDetail, etArea, etPrice,
             etBedrooms, etFloors, etContactName, etContactEmail, etContactPhone,
             etPostTitle, etPostDescription;
-    private Button btnLocateAddress, btnAddImage, btnSavePost, btnStartDate, btnEndDate;
+
+    private RadioGroup rgPostDuration;
+
+    private AutoCompleteTextView actProvince, actDistrict, actCommune;
+    private TextInputLayout tilProvince, tilDistrict, tilCommune; // Để bật/tắt dễ hơn
+
+    private ArrayAdapter<Province> provinceArrayAdapter;
+    private ArrayAdapter<District> districtArrayAdapter;
+    private ArrayAdapter<Commune> communeArrayAdapter;
+
+    private List<Province> allProvinces = new ArrayList<>();
+    private List<District> allDistricts = new ArrayList<>();
+    private List<Commune> allCommunes = new ArrayList<>();
+
+    private List<District> filteredDistricts = new ArrayList<>(); // List quận/huyện cho tỉnh đã chọn
+    private List<Commune> filteredCommunes = new ArrayList<>(); // List phường/xã cho quận đã chọn
+
+    // Lưu trữ lựa chọn hiện tại
+    private Province selectedProvince;
+    private District selectedDistrict;
+    private Commune selectedCommune;
+
+    private Button btnLocateAddress, btnAddImage, btnSavePost;
     private TextView tvSelectedDates;
     private RecyclerView rvSelectedImages;
     private ProgressBar progressBarCreatePost;
@@ -85,19 +132,23 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
     private FirebaseStorage storage;
     private FirebaseUser currentUser;
 
-    private ArrayList<Uri> selectedImageUris = new ArrayList<>();
+    private ArrayList<Object> selectedImageItems = new ArrayList<>();
     private SelectedImageAdapter selectedImageAdapter;
     private ActivityResultLauncher<Intent> imagePickerLauncher;
 
-    private Timestamp startDateTimestamp;
-    private Timestamp endDateTimestamp;
+
     private SimpleDateFormat displayDateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_create_post);
-
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.layout_create_post), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right,0);
+            return insets;
+        });
         // Firebase Init
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
@@ -113,6 +164,9 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
 
         // Bind Views
         bindViews();
+
+        // Load dữ liệu địa chỉ từ JSON
+        loadAddressData();
 
         // Setup Toolbar
         setSupportActionBar(toolbar);
@@ -143,9 +197,14 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
 
     private void bindViews() {
         toolbar = findViewById(R.id.toolbarCreatePost);
-        etCity = findViewById(R.id.etCity);
-        etDistrict = findViewById(R.id.etDistrict);
-        etWard = findViewById(R.id.etWard);
+        // Ánh xạ AutoCompleteTextView và TextInputLayout
+        actProvince = findViewById(R.id.actProvince);
+        actDistrict = findViewById(R.id.actDistrict);
+        actCommune = findViewById(R.id.actCommune);
+        tilProvince = findViewById(R.id.tilProvince);
+        tilDistrict = findViewById(R.id.tilDistrict);
+        tilCommune = findViewById(R.id.tilCommune);
+
         etAddressDetail = findViewById(R.id.etAddressDetail);
         etArea = findViewById(R.id.etArea);
         etPrice = findViewById(R.id.etPrice);
@@ -161,45 +220,224 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
         btnSavePost = findViewById(R.id.btnSavePost);
         rvSelectedImages = findViewById(R.id.rvSelectedImages);
         progressBarCreatePost = findViewById(R.id.progressBarCreatePost);
-        btnStartDate = findViewById(R.id.btnStartDate);
-        btnEndDate = findViewById(R.id.btnEndDate);
-        tvSelectedDates = findViewById(R.id.tvSelectedDates);
+        rgPostDuration = findViewById(R.id.rgPostDuration);
     }
 
     private void setupRecyclerView() {
-        selectedImageAdapter = new SelectedImageAdapter(this, selectedImageUris, this);
-        rvSelectedImages.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        selectedImageAdapter = new SelectedImageAdapter(this, selectedImageItems, this);
+        rvSelectedImages.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)); // Đổi thành VERTICAL
         rvSelectedImages.setAdapter(selectedImageAdapter);
+
+        // *** THÊM PHẦN NÀY ĐỂ KÍCH HOẠT KÉO THẢ ***
+        // 1. Tạo Callback, truyền adapter và danh sách ảnh vào
+        ItemTouchHelper.Callback callback = new ImageTouchHelperCallback(selectedImageAdapter, selectedImageItems);
+        // 2. Tạo ItemTouchHelper từ Callback
+        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(callback);
+        // 3. Gắn ItemTouchHelper vào RecyclerView
+        itemTouchHelper.attachToRecyclerView(rvSelectedImages);
+        // ******************************************
     }
+
+    private void loadAddressData() {
+        try {
+            InputStream is = getAssets().open("donvihanhchinh.json"); // Tên file JSON của bạn
+            Reader reader = new InputStreamReader(is, StandardCharsets.UTF_8);
+            Gson gson = new Gson();
+            AddressData data = gson.fromJson(reader, AddressData.class);
+            reader.close();
+
+            if (data != null) {
+                allProvinces = data.getProvinces() != null ? data.getProvinces() : new ArrayList<>();
+                allDistricts = data.getDistricts() != null ? data.getDistricts() : new ArrayList<>();
+                allCommunes = data.getCommunes() != null ? data.getCommunes() : new ArrayList<>();
+
+                Log.d(TAG, "Loaded " + allProvinces.size() + " provinces, " + allDistricts.size() + " districts, " + allCommunes.size() + " communes.");
+
+                // Sắp xếp theo tên (tùy chọn)
+                Collections.sort(allProvinces, (p1, p2) -> p1.getName().compareTo(p2.getName()));
+                // Không cần sắp xếp district/commune ban đầu vì sẽ lọc động
+
+                setupAutoCompleteTextViews(); // Setup spinner sau khi có dữ liệu
+            } else {
+                Log.e(TAG, "Failed to parse AddressData from JSON.");
+                Toast.makeText(this, "Lỗi đọc dữ liệu địa chỉ.", Toast.LENGTH_SHORT).show();
+            }
+
+        } catch (IOException e) {
+            Log.e(TAG, "Error reading address JSON file", e);
+            Toast.makeText(this, "Lỗi đọc file dữ liệu địa chỉ.", Toast.LENGTH_SHORT).show();
+        } catch (com.google.gson.JsonSyntaxException e) {
+            Log.e(TAG, "Error parsing address JSON file", e);
+            Toast.makeText(this, "Lỗi định dạng file dữ liệu địa chỉ.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void setupAutoCompleteTextViews() {
+        // --- Province AutoCompleteTextView ---
+        // Không cần thêm item hint vì TextInputLayout đã có hint
+        provinceArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, allProvinces);
+        actProvince.setAdapter(provinceArrayAdapter);
+        actProvince.setOnItemClickListener((parent, view, position, id) -> {
+            selectedProvince = (Province) parent.getItemAtPosition(position);
+            Log.d(TAG, "Province Selected: " + selectedProvince.getName() + " (ID: " + selectedProvince.getIdProvince() + ")");
+
+            // Clear và cập nhật District
+            actDistrict.setText("", false); // Clear text, false để không trigger listener
+            selectedDistrict = null;
+            updateDistrictDropdown(selectedProvince.getIdProvince());
+
+            // Clear và vô hiệu hóa Commune
+            actCommune.setText("", false);
+            selectedCommune = null;
+            updateCommuneDropdown(null); // Gọi với null để clear và disable
+            tilCommune.setEnabled(false);
+
+            updateMapLocation();
+        });
+
+        // --- District AutoCompleteTextView ---
+        // Khởi tạo adapter rỗng ban đầu
+        districtArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, new ArrayList<>());
+        actDistrict.setAdapter(districtArrayAdapter);
+        // tilDistrict đã được disable trong XML, sẽ enable khi có dữ liệu
+
+        actDistrict.setOnItemClickListener((parent, view, position, id) -> {
+            selectedDistrict = (District) parent.getItemAtPosition(position);
+            Log.d(TAG, "District Selected: " + selectedDistrict.getName() + " (ID: " + selectedDistrict.getIdDistrict() + ")");
+
+            // Clear và cập nhật Commune
+            actCommune.setText("", false);
+            selectedCommune = null;
+            updateCommuneDropdown(selectedDistrict.getIdDistrict());
+
+            updateMapLocation();
+        });
+
+        // --- Commune AutoCompleteTextView ---
+        // Khởi tạo adapter rỗng ban đầu
+        communeArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, new ArrayList<>());
+        actCommune.setAdapter(communeArrayAdapter);
+        // tilCommune đã được disable trong XML
+
+        actCommune.setOnItemClickListener((parent, view, position, id) -> {
+            selectedCommune = (Commune) parent.getItemAtPosition(position);
+            Log.d(TAG, "Commune Selected: " + selectedCommune.getName() + " (ID: " + selectedCommune.getIdCommune() + ")");
+            updateMapLocation();
+        });
+    }
+    private void updateMapLocation() {
+        // Tự động geocode khi chọn xong Phường/Xã hoặc có đủ thông tin
+        if (selectedProvince != null && selectedDistrict != null && selectedCommune != null && !TextUtils.isEmpty(etAddressDetail.getText().toString().trim())) {
+            geocodeAddress();
+        } else if (selectedProvince != null && selectedDistrict != null && !TextUtils.isEmpty(etAddressDetail.getText().toString().trim())){
+            // Hoặc geocode khi chỉ có Tỉnh/Huyện/Chi tiết để lấy vị trí tương đối
+            geocodeAddress();
+        }
+        // Có thể thêm logic chỉ zoom về Tỉnh/Huyện nếu chỉ chọn đến đó
+    }
+
+    private void updateDistrictDropdown(String provinceId) {
+        filteredDistricts.clear();
+        boolean hasData = false;
+        if (provinceId != null) {
+            filteredDistricts = allDistricts.stream()
+                    .filter(d -> provinceId.equals(d.getIdProvince()))
+                    .sorted((d1, d2) -> d1.getName().compareTo(d2.getName()))
+                    .collect(Collectors.toList());
+            hasData = !filteredDistricts.isEmpty();
+            Log.d(TAG, "Found " + filteredDistricts.size() + " districts for province ID: " + provinceId);
+        }
+
+        // Cập nhật Adapter
+        districtArrayAdapter.clear();
+        if (hasData) {
+            districtArrayAdapter.addAll(filteredDistricts);
+        }
+        districtArrayAdapter.notifyDataSetChanged();
+
+        // Bật/tắt TextInputLayout
+        tilDistrict.setEnabled(hasData);
+        // Đảm bảo text được xóa nếu không có data
+        if (!hasData) {
+            actDistrict.setText("", false);
+            selectedDistrict = null;
+        }
+    }
+
+    // Đổi tên hàm updateCommuneSpinner thành updateCommuneDropdown
+    private void updateCommuneDropdown(String districtId) {
+        filteredCommunes.clear();
+        boolean hasData = false;
+        if (districtId != null) {
+            filteredCommunes = allCommunes.stream()
+                    .filter(c -> districtId.equals(c.getIdDistrict()))
+                    .sorted((c1, c2) -> c1.getName().compareTo(c2.getName()))
+                    .collect(Collectors.toList());
+            hasData = !filteredCommunes.isEmpty();
+            Log.d(TAG, "Found " + filteredCommunes.size() + " communes for district ID: " + districtId);
+        }
+
+        // Cập nhật Adapter
+        communeArrayAdapter.clear();
+        if(hasData){
+            communeArrayAdapter.addAll(filteredCommunes);
+        }
+        communeArrayAdapter.notifyDataSetChanged();
+
+        // Bật/tắt TextInputLayout
+        tilCommune.setEnabled(hasData);
+        // Đảm bảo text được xóa nếu không có data
+        if (!hasData) {
+            actCommune.setText("", false);
+            selectedCommune = null;
+        }
+    }
+
+
 
     private void setupImagePicker() {
         imagePickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
                     if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                        // *** SỬ DỤNG selectedImageItems ***
+                        int currentImageCount = selectedImageItems.size();
                         if (result.getData().getClipData() != null) {
-                            // Multiple images selected
                             int count = result.getData().getClipData().getItemCount();
-                            int currentImageCount = selectedImageUris.size();
                             for (int i = 0; i < count && currentImageCount + i < MAX_IMAGES; i++) {
                                 Uri imageUri = result.getData().getClipData().getItemAt(i).getUri();
-                                selectedImageUris.add(imageUri);
+                                // Thêm Uri vào List<Object>
+                                if (!isUriAlreadyAdded(imageUri)) { // Kiểm tra trùng lặp nếu cần
+                                    selectedImageItems.add(imageUri);
+                                }
                             }
                         } else if (result.getData().getData() != null) {
-                            // Single image selected
-                            if (selectedImageUris.size() < MAX_IMAGES) {
+                            if (currentImageCount < MAX_IMAGES) {
                                 Uri imageUri = result.getData().getData();
-                                selectedImageUris.add(imageUri);
+                                if (!isUriAlreadyAdded(imageUri)) {
+                                    selectedImageItems.add(imageUri);
+                                }
                             }
                         }
                         selectedImageAdapter.notifyDataSetChanged();
-                        checkImageLimit(); // Disable button if limit reached
+                        checkImageLimit();
                     }
                 });
     }
 
+    // Hàm này dùng để kiểm tra trùng lặp nếu cần (giữ nguyên)
+    private boolean isUriAlreadyAdded(Uri uri) {
+        for (Object item : selectedImageItems) {
+            if (item instanceof Uri && item.equals(uri)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     private void checkImageLimit() {
-        btnAddImage.setEnabled(selectedImageUris.size() < MAX_IMAGES);
+        btnAddImage.setEnabled(selectedImageItems.size() < MAX_IMAGES);
         if (!btnAddImage.isEnabled()) {
             Toast.makeText(this, "Đã đạt giới hạn " + MAX_IMAGES + " ảnh", Toast.LENGTH_SHORT).show();
         }
@@ -207,10 +445,10 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
 
     @Override
     public void onImageRemoved(int position) {
-        if (position >= 0 && position < selectedImageUris.size()) {
-            selectedImageUris.remove(position);
+        if (position >= 0 && position < selectedImageItems.size()) {
+            selectedImageItems.remove(position);
             selectedImageAdapter.notifyItemRemoved(position);
-            selectedImageAdapter.notifyItemRangeChanged(position, selectedImageUris.size()); // Update indices
+            selectedImageAdapter.notifyItemRangeChanged(position, selectedImageItems.size()); // Update indices
             checkImageLimit(); // Re-enable button if below limit
         }
     }
@@ -219,60 +457,11 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
         btnLocateAddress.setOnClickListener(v -> geocodeAddress());
         btnAddImage.setOnClickListener(v -> openImagePicker());
         btnSavePost.setOnClickListener(v -> attemptSavePost());
-        btnStartDate.setOnClickListener(v -> showDatePickerDialog(true));
-        btnEndDate.setOnClickListener(v -> showDatePickerDialog(false));
     }
 
-    private void showDatePickerDialog(boolean isStartDate) {
-        Calendar calendar = Calendar.getInstance();
-        // Use existing date if available, otherwise use today
-        Timestamp initialTimestamp = isStartDate ? startDateTimestamp : endDateTimestamp;
-        if(initialTimestamp != null) {
-            calendar.setTime(initialTimestamp.toDate());
-        }
 
-        DatePickerDialog datePickerDialog = new DatePickerDialog(
-                this,
-                (view, year, month, dayOfMonth) -> {
-                    Calendar selectedCalendar = Calendar.getInstance();
-                    selectedCalendar.set(year, month, dayOfMonth,0,0,0); // Set time to start of day
-                    selectedCalendar.set(Calendar.MILLISECOND, 0);
-                    Date selectedDate = selectedCalendar.getTime();
 
-                    if (isStartDate) {
-                        // Validate start date is not after end date
-                        if (endDateTimestamp != null && selectedDate.after(endDateTimestamp.toDate())) {
-                            Toast.makeText(this, "Ngày bắt đầu không thể sau ngày kết thúc", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                        startDateTimestamp = new Timestamp(selectedDate);
-                    } else {
-                        // Validate end date is not before start date
-                        if (startDateTimestamp != null && selectedDate.before(startDateTimestamp.toDate())) {
-                            Toast.makeText(this, "Ngày kết thúc không thể trước ngày bắt đầu", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                        endDateTimestamp = new Timestamp(selectedDate);
-                    }
-                    updateSelectedDatesText();
-                },
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH)
-        );
-        // Optional: Set min/max dates for the picker
-        // if(isStartDate && endDateTimestamp != null) datePickerDialog.getDatePicker().setMaxDate(endDateTimestamp.toDate().getTime());
-        // if(!isStartDate && startDateTimestamp != null) datePickerDialog.getDatePicker().setMinDate(startDateTimestamp.toDate().getTime());
 
-        datePickerDialog.show();
-    }
-
-    private void updateSelectedDatesText() {
-        String startStr = startDateTimestamp != null ? displayDateFormat.format(startDateTimestamp.toDate()) : "Chưa chọn";
-        String endStr = endDateTimestamp != null ? displayDateFormat.format(endDateTimestamp.toDate()) : "Chưa chọn";
-        tvSelectedDates.setText(String.format("%s - %s", startStr, endStr));
-        tvSelectedDates.setVisibility(View.VISIBLE);
-    }
 
     private void prefillContactInfo() {
         // Lấy thông tin từ profile user đã lưu trong Firestore
@@ -310,17 +499,24 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
     }
 
     private void geocodeAddress() {
-        String city = etCity.getText().toString().trim();
-        String district = etDistrict.getText().toString().trim();
-        String ward = etWard.getText().toString().trim();
+        String city = actProvince.getText().toString().trim(); // Lấy text trực tiếp
+        String district = actDistrict.getText().toString().trim();
+        String ward = actCommune.getText().toString().trim();
         String addressDetail = etAddressDetail.getText().toString().trim();
 
-        String fullAddress = addressDetail + ", " + ward + ", " + district + ", " + city;
-        fullAddress = fullAddress.replaceAll("(, )+", ", ").replaceAll("^, |, $", "").trim(); // Clean up commas
+        // Tạo địa chỉ đầy đủ hơn để geocode (thứ tự có thể ảnh hưởng kết quả)
+        String fullAddress = addressDetail;
+        if (!TextUtils.isEmpty(ward)) fullAddress = (!TextUtils.isEmpty(fullAddress)? fullAddress + ", " : "") + ward;
+        if (!TextUtils.isEmpty(district)) fullAddress = (!TextUtils.isEmpty(fullAddress)? fullAddress + ", " : "") + district;
+        if (!TextUtils.isEmpty(city)) fullAddress = (!TextUtils.isEmpty(fullAddress)? fullAddress + ", " : "") + city;
+        fullAddress += ", Việt Nam";
 
-        if (TextUtils.isEmpty(fullAddress) || fullAddress.equals(",")) {
-            Toast.makeText(this, "Vui lòng nhập địa chỉ", Toast.LENGTH_SHORT).show();
-            return;
+        fullAddress = fullAddress.replaceAll("^, ", "").trim(); // Bỏ dấu phẩy đầu
+
+        // Chỉ geocode nếu có ít nhất Tỉnh/TP
+        if (TextUtils.isEmpty(city)) {
+            // Toast.makeText(this, "Vui lòng chọn ít nhất Tỉnh/Thành phố", Toast.LENGTH_SHORT).show();
+            return; // Không geocode nếu chưa chọn tỉnh
         }
 
         Log.d(TAG, "Geocoding address: " + fullAddress);
@@ -356,42 +552,99 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
 
     // --- Saving Logic ---
 
+    // --- Saving Logic ---
+
     private void attemptSavePost() {
-        // --- Simple Validation ---
         if (!validateInput()) {
             return;
         }
-
-        // --- Start Saving Process ---
         progressBarCreatePost.setVisibility(View.VISIBLE);
         btnSavePost.setEnabled(false);
 
-        if (!selectedImageUris.isEmpty()) {
-            uploadImagesAndSavePost();
+        // *** LỌC RA CÁC URI TỪ LIST OBJECT TRƯỚC KHI UPLOAD ***
+        List<Uri> urisToUpload = selectedImageItems.stream()
+                .filter(item -> item instanceof Uri)
+                .map(item -> (Uri) item)
+                .collect(Collectors.toList());
+
+        if (!urisToUpload.isEmpty()) {
+            uploadImagesAndSavePost(urisToUpload); // Truyền List<Uri> đã lọc
         } else {
-            // Save post without images
-            saveDataToFirestore(new ArrayList<>()); // Pass empty list
+            saveDataToFirestore(new ArrayList<>()); // Lưu không có ảnh
         }
     }
 
-    private boolean validateInput() {
-        // Add more specific validation as needed (e.g., check ranges)
-        if (TextUtils.isEmpty(etCity.getText())) { showValidationError(etCity, "Vui lòng nhập Tỉnh/Thành phố"); return false; }
-        if (TextUtils.isEmpty(etDistrict.getText())) { showValidationError(etDistrict, "Vui lòng nhập Quận/Huyện"); return false; }
-        if (TextUtils.isEmpty(etWard.getText())) { showValidationError(etWard, "Vui lòng nhập Phường/Xã"); return false; }
-        if (TextUtils.isEmpty(etAddressDetail.getText())) { showValidationError(etAddressDetail, "Vui lòng nhập địa chỉ chi tiết"); return false; }
-        if (TextUtils.isEmpty(etArea.getText())) { showValidationError(etArea, "Vui lòng nhập diện tích"); return false; }
-        if (TextUtils.isEmpty(etPrice.getText())) { showValidationError(etPrice, "Vui lòng nhập mức giá"); return false; }
-        if (TextUtils.isEmpty(etBedrooms.getText())) { showValidationError(etBedrooms, "Vui lòng nhập số phòng ngủ"); return false; }
-        if (TextUtils.isEmpty(etFloors.getText())) { showValidationError(etFloors, "Vui lòng nhập số tầng"); return false; }
-        if (TextUtils.isEmpty(etPostTitle.getText())) { showValidationError(etPostTitle, "Vui lòng nhập tiêu đề"); return false; }
-        if (TextUtils.isEmpty(etPostDescription.getText())) { showValidationError(etPostDescription, "Vui lòng nhập mô tả"); return false; }
-        if (startDateTimestamp == null) { Toast.makeText(this, "Vui lòng chọn ngày bắt đầu", Toast.LENGTH_SHORT).show(); return false;}
-        if (endDateTimestamp == null) { Toast.makeText(this, "Vui lòng chọn ngày kết thúc", Toast.LENGTH_SHORT).show(); return false;}
-        // Optional validation for contact info
-        // ...
+    // *** THAY ĐỔI THAM SỐ CỦA HÀM NÀY ĐỂ NHẬN List<Uri> ***
+    private void uploadImagesAndSavePost(List<Uri> urisToUpload) {
+        List<String> downloadUrls = new ArrayList<>();
+        AtomicInteger uploadCounter = new AtomicInteger(0);
+        int totalImages = urisToUpload.size(); // Dùng size của list đã lọc
 
-        // Validate numbers
+        StorageReference storageRef = storage.getReference().child("post_images");
+
+        for (Uri imageUri : urisToUpload) { // Lặp qua list Uri đã lọc
+            String filename = UUID.randomUUID().toString() + ".jpg";
+            StorageReference fileRef = storageRef.child(filename);
+            UploadTask uploadTask = fileRef.putFile(imageUri);
+
+            uploadTask.continueWithTask(task -> {
+                if (!task.isSuccessful()) { throw task.getException(); }
+                return fileRef.getDownloadUrl();
+            }).addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    Uri downloadUri = task.getResult();
+                    downloadUrls.add(downloadUri.toString());
+                } else {
+                    Log.w(TAG, "Image upload failed: " + imageUri.toString(), task.getException());
+                    Toast.makeText(CreatePostActivity.this, "Lỗi tải lên ảnh: " + imageUri.getLastPathSegment(), Toast.LENGTH_SHORT).show();
+                }
+
+                if (uploadCounter.incrementAndGet() == totalImages) {
+                    saveDataToFirestore(downloadUrls);
+                }
+            });
+        }
+    }
+
+    // validateInput: Kiểm tra text của AutoCompleteTextView
+    private boolean validateInput() {
+        if (TextUtils.isEmpty(actProvince.getText())) {
+            tilProvince.setError("Vui lòng chọn Tỉnh/Thành phố");
+            actProvince.requestFocus();
+            return false;
+        } else {
+            tilProvince.setError(null); // Clear error
+        }
+
+        if (TextUtils.isEmpty(actDistrict.getText())) {
+            tilDistrict.setError("Vui lòng chọn Quận/Huyện");
+            actDistrict.requestFocus();
+            return false;
+        } else {
+            tilDistrict.setError(null);
+        }
+
+        if (TextUtils.isEmpty(actCommune.getText())) {
+            tilCommune.setError("Vui lòng chọn Phường/Xã");
+            actCommune.requestFocus();
+            return false;
+        } else {
+            tilCommune.setError(null);
+        }
+
+        // Bỏ kiểm tra bắt buộc cho etAddressDetail
+        // if (TextUtils.isEmpty(etAddressDetail.getText())) { showValidationError(etAddressDetail, "Vui lòng nhập địa chỉ chi tiết"); return false; }
+
+        // ... (Các kiểm tra khác giữ nguyên: area, price, bedrooms, floors, title, description, dates, parse số)
+        if (TextUtils.isEmpty(etArea.getText())) { showValidationError(etArea, "Vui lòng nhập diện tích"); return false; } else {etArea.setError(null);}
+        // ... thêm clear error cho các trường khác
+
+        // *** Kiểm tra RadioGroup Thời hạn ***
+        if (rgPostDuration.getCheckedRadioButtonId() == -1) { // -1 nghĩa là chưa có cái nào được chọn
+            Toast.makeText(this, "Vui lòng chọn thời hạn đăng tin", Toast.LENGTH_SHORT).show();
+            rgPostDuration.requestFocus(); // Focus vào RadioGroup
+            return false;
+        }
         try {
             Double.parseDouble(etArea.getText().toString());
             Long.parseLong(etPrice.getText().toString());
@@ -402,7 +655,6 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
             return false;
         }
 
-
         return true;
     }
 
@@ -412,69 +664,50 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
     }
 
 
-    private void uploadImagesAndSavePost() {
-        List<String> downloadUrls = new ArrayList<>();
-        AtomicInteger uploadCounter = new AtomicInteger(0);
-        int totalImages = selectedImageUris.size();
-
-        StorageReference storageRef = storage.getReference().child("post_images");
-
-        for (Uri imageUri : selectedImageUris) {
-            // Create unique filename
-            String filename = UUID.randomUUID().toString() + ".jpg";
-            StorageReference fileRef = storageRef.child(filename);
-
-            UploadTask uploadTask = fileRef.putFile(imageUri);
-
-            uploadTask.continueWithTask(task -> {
-                if (!task.isSuccessful()) {
-                    throw task.getException();
-                }
-                // Continue with the task to get the download URL
-                return fileRef.getDownloadUrl();
-            }).addOnCompleteListener(task -> {
-                if (task.isSuccessful()) {
-                    Uri downloadUri = task.getResult();
-                    downloadUrls.add(downloadUri.toString());
-                    Log.d(TAG, "Image uploaded: " + downloadUri.toString());
-                } else {
-                    // Handle failures
-                    Log.w(TAG, "Image upload failed: " + imageUri.toString(), task.getException());
-                    // Optionally show a message for the failed image
-                    Toast.makeText(CreatePostActivity.this, "Lỗi tải lên ảnh: " + imageUri.getLastPathSegment(), Toast.LENGTH_SHORT).show();
-                }
-
-                // Check if all uploads are complete (success or failure)
-                if (uploadCounter.incrementAndGet() == totalImages) {
-                    // All uploads finished, proceed to save data even if some failed
-                    Log.d(TAG, "All image uploads finished. URLs obtained: " + downloadUrls.size());
-                    if (downloadUrls.size() < totalImages) {
-                        // Inform user that some images failed but we proceed
-                        Toast.makeText(this, "Một số ảnh tải lên thất bại, bài đăng vẫn sẽ được lưu.", Toast.LENGTH_LONG).show();
-                    }
-                    saveDataToFirestore(downloadUrls);
-                }
-            });
-        }
-    }
-
-
     private void saveDataToFirestore(List<String> imageUrls) {
-        if (currentUser == null) {
-            showErrorAndReset("Lỗi: Người dùng không tồn tại.");
+        if (currentUser == null || !validateInput()) {
+            showErrorAndReset("Lỗi: Dữ liệu không hợp lệ hoặc người dùng không tồn tại.");
             return;
         }
+
+        // --- Tính toán Ngày bắt đầu và Kết thúc ---
+        Timestamp startDate = Timestamp.now(); // Ngày bắt đầu là hiện tại
+        int selectedDurationId = rgPostDuration.getCheckedRadioButtonId();
+        int durationDays = 0;
+
+        if (selectedDurationId == R.id.rbDuration10) {
+            durationDays = 10;
+        } else if (selectedDurationId == R.id.rbDuration20) {
+            durationDays = 20;
+        } else if (selectedDurationId == R.id.rbDuration30) {
+            durationDays = 30;
+        } else {
+            // Lỗi này không nên xảy ra nếu validation hoạt động đúng
+            showErrorAndReset("Lỗi không xác định được thời hạn đăng.");
+            return;
+        }
+
+        // Tính ngày kết thúc
+        long startTimeMillis = startDate.toDate().getTime();
+
+        long durationMillis = TimeUnit.DAYS.toMillis(durationDays);
+
+        long endTimeMillis = startTimeMillis + durationMillis;
+        Timestamp endDate = new Timestamp(new Date(endTimeMillis));
+        // ------------------------------------------
 
         Post newPost = new Post();
         newPost.setUserId(currentUser.getUid());
         newPost.setTitle(etPostTitle.getText().toString().trim());
         newPost.setDescription(etPostDescription.getText().toString().trim());
-        newPost.setCity(etCity.getText().toString().trim());
-        newPost.setDistrict(etDistrict.getText().toString().trim());
-        newPost.setWard(etWard.getText().toString().trim());
-        newPost.setAddress(etAddressDetail.getText().toString().trim());
 
-        // Parse numbers safely after validation
+        // Lấy tên từ AutoCompleteTextView
+        newPost.setCity(actProvince.getText().toString().trim());
+        newPost.setDistrict(actDistrict.getText().toString().trim());
+        newPost.setWard(actCommune.getText().toString().trim());
+        newPost.setAddress(etAddressDetail.getText().toString().trim()); // Có thể rỗng
+
+        // ... (Gán các giá trị khác như cũ)
         try {
             newPost.setArea(Double.parseDouble(etArea.getText().toString()));
             newPost.setPrice(Long.parseLong(etPrice.getText().toString()));
@@ -485,30 +718,30 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
             Log.e(TAG, "Number parsing error during save", e);
             return;
         }
-
         newPost.setImageUrls(imageUrls);
-        newPost.setTimestamp(Timestamp.now());
-        newPost.setAvailable(true); // Default to available
-        newPost.setViewCount(0); // Default view count
-        newPost.setStartDate(startDateTimestamp); // Gán Timestamp đã chọn
-        newPost.setEndDate(endDateTimestamp); // Gán Timestamp đã chọn
-
+        newPost.setTimestamp(Timestamp.now()); // Thời gian tạo/cập nhật post
+        newPost.setAvailable(true);
+        newPost.setViewCount(0);
+        // *** Gán ngày bắt đầu và kết thúc đã tính toán ***
+        newPost.setStartDate(startDate);
+        newPost.setEndDate(endDate);
+        // ***------------------------------------***
         if (currentLatLng != null) {
             newPost.setLatitude(currentLatLng.latitude);
             newPost.setLongitude(currentLatLng.longitude);
         } else {
-            newPost.setLatitude(0); // Hoặc giá trị mặc định khác
+            newPost.setLatitude(0);
             newPost.setLongitude(0);
         }
 
         // --- Save to Firestore ---
         db.collection("posts")
-                .add(newPost) // Use add() to auto-generate ID
+                .add(newPost)
                 .addOnSuccessListener(documentReference -> {
                     Log.d(TAG, "Post created successfully with ID: " + documentReference.getId());
                     progressBarCreatePost.setVisibility(View.GONE);
                     Toast.makeText(CreatePostActivity.this, "Đăng tin thành công!", Toast.LENGTH_SHORT).show();
-                    finish(); // Go back to the previous activity
+                    finish();
                 })
                 .addOnFailureListener(e -> {
                     Log.w(TAG, "Error adding post document", e);

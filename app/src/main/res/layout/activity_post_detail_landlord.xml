@@ -2,78 +2,82 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout_post_detail_landlord"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F5FF"
-    tools:context=".activity.common.PostDetailActivity">  <!-- Hoặc .activity.landlord.PostDetailLandlordActivity -->
+    tools:context=".activity.landlord.PostDetailLandlordActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-        android:background="?attr/colorPrimary">
+        android:layout_height="wrap_content">
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbarPostDetail"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
             app:title="Chi tiết tin" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
-        android:id="@+id/LandlorđetailscrollView"
+        android:id="@+id/LandlordDetailScrollView"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:paddingBottom="80dp"
+    app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+    <!-- Đưa ViewPager2 ra ngoài ConstraintLayout chi tiết -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:paddingBottom="80dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
+        <!-- Image Slider Container (để chứa ViewPager và Counter) -->
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="16dp">
+            android:layout_height="250dp"> <!-- Hoặc chiều cao bạn muốn -->
 
-            <!-- Image Slider -->
             <androidx.viewpager2.widget.ViewPager2
                 android:id="@+id/viewPagerImages"
-                android:layout_width="0dp"
-                android:layout_height="250dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
 
             <TextView
                 android:id="@+id/tvImageCounter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dp"
-                android:background="#80000000"
-                android:paddingStart="8dp"
-                android:paddingTop="4dp"
-                android:paddingEnd="8dp"
-                android:paddingBottom="4dp"
-                android:textColor="@android:color/white"
-                android:textSize="12sp"
-                app:layout_constraintBottom_toBottomOf="@id/viewPagerImages"
-                app:layout_constraintEnd_toEndOf="@id/viewPagerImages"
-                tools:text="1/3" />
+                android:layout_gravity="bottom|end"
+            android:layout_margin="8dp"
+            android:background="#80000000"
+            android:paddingStart="8dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="4dp"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            tools:text="1/3" />
+        </FrameLayout>
+
+        <!-- ConstraintLayout chứa phần còn lại của chi tiết -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="20dp"> <!-- Giữ padding cho phần chi tiết -->
 
             <!-- Title -->
             <TextView
                 android:id="@+id/tvPostTitleDetail"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
                 android:textColor="@color/black"
                 android:textSize="20sp"
                 android:textStyle="bold"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/viewPagerImages"
-                tools:text="Tên bài đăng rất dài để kiểm tra xuống dòng" />
+                app:layout_constraintTop_toTopOf="parent"
+            tools:text="Tên bài đăng rất dài để kiểm tra xuống dòng" />
 
             <!-- Price and Area -->
             <TextView
@@ -81,7 +85,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:textColor="@color/design_default_color_primary"
+                android:textColor="@color/purple"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 app:layout_constraintStart_toStartOf="parent"
@@ -93,7 +97,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
-                android:textColor="@color/design_default_color_primary"
+                android:textColor="@color/purple"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 app:layout_constraintBottom_toBottomOf="@id/tvPostPriceDetail"
@@ -107,9 +111,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                app:cardBackgroundColor="#EDE7F6"
+                app:cardBackgroundColor="#ECE6F0"
                 app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
+                app:cardElevation="0dp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/tvPostPriceDetail">
 
@@ -124,14 +128,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Số lượt xem"
-                        android:textColor="#673AB7"
+                        android:textColor="@color/purple"
                         android:textSize="12sp" />
 
                     <TextView
                         android:id="@+id/tvViewCount"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textColor="#673AB7"
+                        android:textColor="@color/purple"
                         android:textSize="20sp"
                         android:textStyle="bold"
                         tools:text="10" />
@@ -156,7 +160,6 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:textColor="@android:color/darker_gray"
                 android:textSize="14sp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -183,7 +186,6 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="Mức giá"
-                android:textColor="@android:color/darker_gray"
                 android:textSize="14sp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/tvGeneralInfoLabel" />
@@ -210,7 +212,6 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="Diện tích"
-                android:textColor="@android:color/darker_gray"
                 android:textSize="14sp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/tvPriceLabel" />
@@ -237,7 +238,6 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="Số phòng ngủ"
-                android:textColor="@android:color/darker_gray"
                 android:textSize="14sp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/tvAreaLabel" />
@@ -263,7 +263,6 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:textColor="@android:color/darker_gray"
                 android:textSize="14sp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -274,11 +273,11 @@
             <androidx.cardview.widget.CardView
                 android:id="@+id/cardLandlordInfo"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="100dp"
                 android:layout_marginTop="16dp"
-                app:cardBackgroundColor="#EDE7F6"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
+                app:cardBackgroundColor="#ECE6F0"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/tvPostingDateDetail">
@@ -292,11 +291,11 @@
 
                     <de.hdodenhof.circleimageview.CircleImageView
                         android:id="@+id/ivLandlordAvatar"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
+                        android:layout_width="62dp"
+                        android:layout_height="62dp"
+                        android:layout_margin="16dp"
                         android:src="@drawable/person_24px"
-                        app:civ_border_color="#CCCCCC"
-                        app:civ_border_width="1dp" />
+                        app:civ_circle_background_color="#D9D9D9" />
 
                     <TextView
                         android:id="@+id/tvLandlordName"
@@ -313,6 +312,8 @@
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
+        </LinearLayout>
+
     </androidx.core.widget.NestedScrollView>
 
     <!-- Edit Button at Bottom -->
@@ -325,8 +326,6 @@
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
         android:text="Chỉnh sửa"
-        android:backgroundTint="#673AB7"
-        android:textColor="@android:color/white"
         app:layout_insetEdge="bottom" />
 
     <ProgressBar

@@ -2,22 +2,22 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/layout_create_post"
+    android:id="@+id/layout_edit_post"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F8F5FF"
-    tools:context=".activity.landlord.CreatePostActivity">
+    tools:context=".activity.landlord.EditPostActivity">
 
     <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appBarLayoutCreate"
+        android:id="@+id/appBarLayoutEdit"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
         <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbarCreatePost"
+            android:id="@+id/toolbarEditPost"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Tạo tin đăng" />
+            app:title="Chỉnh sửa tin đăng" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -365,13 +365,13 @@
                 android:text="Thêm ảnh"
                 app:icon="@drawable/ic_add_photo" /> <!-- Cần icon này -->
             <Button
-                android:id="@+id/btnSavePost"
+                android:id="@+id/btnUpdatePost"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="16dp"
-                android:text="Lưu thông tin"
+                android:text="Cập nhật thông tin"
                 app:layout_insetEdge="bottom" />
         </LinearLayout>
 
@@ -381,7 +381,7 @@
 
 
     <ProgressBar
-        android:id="@+id/progressBarCreatePost"
+        android:id="@+id/progressBarEditPost"
         style="?android:attr/progressBarStyleLarge"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
