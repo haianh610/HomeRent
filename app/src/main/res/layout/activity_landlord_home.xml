@@ -8,7 +8,6 @@
     tools:context=".activity.landlord.LandlordHomeActivity"> <!-- Đổi context -->
 
 
-
     <!-- Fragment Container -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/fragmentContainerLandlord"

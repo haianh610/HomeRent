@@ -31,18 +31,16 @@ public class ChangeAccountActivity extends AppCompatActivity {
     private ProgressDialog progressDialog;
     private ActivityResultLauncher<Intent> mActivityResultLauncher;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = FragmentChangeAccountBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
+        binding.imgAvatar.setImageResource(R.drawable.ic_ava);
         progressDialog = new ProgressDialog(this);
         setUserInfo();
         initListener();
         initActivityResultLauncher();
-
     }
 
     private void initActivityResultLauncher() {
@@ -57,6 +55,7 @@ public class ChangeAccountActivity extends AppCompatActivity {
                 }
         );
     }
+
     private void setUserInfo() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) return;
@@ -67,59 +66,9 @@ public class ChangeAccountActivity extends AppCompatActivity {
 
     private void initListener() {
         binding.imgAvatar.setOnClickListener(v -> pickImage());
-
         binding.btnLuu.setOnClickListener(v -> onClickUpdateProfile());
-        binding.btnUpdateEmail.setOnClickListener(v -> {
-            onClickUpdateEmail();
-
-        });
-
         binding.btnBack.setOnClickListener(v -> finish());
     }
-    private void onClickUpdateEmail() {
-        String newEmail = binding.edtEmail.getText().toString().trim();
-        String currentPassword = binding.edtPassword.getText().toString().trim(); // Bạn cần có ô nhập mật khẩu
-
-        if (newEmail.isEmpty() || currentPassword.isEmpty()) {
-            Toast.makeText(this, "Vui lòng nhập đầy đủ email mới và mật khẩu hiện tại", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) {
-            Toast.makeText(this, "Không tìm thấy người dùng", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        progressDialog.setMessage("Đang xác thực và cập nhật email...");
-        progressDialog.show();
-
-        // Xác thực lại bằng email cũ và mật khẩu hiện tại
-        AuthCredential credential = EmailAuthProvider.getCredential(user.getEmail(), currentPassword);
-
-        user.reauthenticate(credential)
-                .addOnCompleteListener(reauthTask -> {
-                    if (reauthTask.isSuccessful()) {
-                        user.updateEmail(newEmail)
-                                .addOnCompleteListener(updateTask -> {
-                                    progressDialog.dismiss();
-                                    if (updateTask.isSuccessful()) {
-                                        Toast.makeText(this, "Cập nhật email thành công", Toast.LENGTH_SHORT).show();
-                                        setUserInfo();
-                                    } else {
-                                        Log.e("UpdateEmail", "Lỗi khi cập nhật email", updateTask.getException());
-                                        Toast.makeText(this, "Cập nhật email thất bại: " + updateTask.getException().getMessage(), Toast.LENGTH_LONG).show();
-                                    }
-                                });
-                    } else {
-                        progressDialog.dismiss();
-                        Log.e("Reauth", "Lỗi xác thực lại", reauthTask.getException());
-                        Toast.makeText(this, "Xác thực thất bại: " + reauthTask.getException().getMessage(), Toast.LENGTH_LONG).show();
-                    }
-                });
-    }
-
-
 
     private void pickImage() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
@@ -137,11 +86,12 @@ public class ChangeAccountActivity extends AppCompatActivity {
         mActivityResultLauncher.launch(Intent.createChooser(intent, "Chọn ảnh"));
     }
 
-
     private void onClickUpdateProfile() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        progressDialog.show();
         if (user == null) return;
+
+        progressDialog.setMessage("Đang lưu thông tin...");
+        progressDialog.show();
 
         String fullname = binding.edtTen.getText().toString();
         UserProfileChangeRequest.Builder builder = new UserProfileChangeRequest.Builder().setDisplayName(fullname);
@@ -156,7 +106,7 @@ public class ChangeAccountActivity extends AppCompatActivity {
                         finish();
                     } else {
                         Toast.makeText(this, "Cập nhật thất bại", Toast.LENGTH_SHORT).show();
-                        Log.e("TAG", "Error", task.getException());
+                        Log.e("UpdateProfile", "Lỗi: ", task.getException());
                     }
                 });
     }

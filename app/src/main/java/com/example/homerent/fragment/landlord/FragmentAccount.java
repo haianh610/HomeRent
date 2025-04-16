@@ -4,10 +4,11 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-
+import com.example.homerent.MainActivity;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -23,8 +24,10 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
 public class FragmentAccount extends Fragment {
+    private static final String TAG = "FragmentAccount";
     private FirebaseAuth auth;
     FragmentAccountBinding binding;
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -57,53 +60,46 @@ public class FragmentAccount extends Fragment {
                     .show();
         });
 
-        FirebaseUser user = auth.getCurrentUser();
-        if (user != null) {
-            String name = user.getDisplayName();
-            String email = user.getEmail();
-            Uri photoUrl = user.getPhotoUrl();
-
-            binding.tvName.setText(name != null ? name : "Không có tên");
-            binding.tvEmail.setText(email != null ? email : "Không có email");
-
-            if (photoUrl != null) {
-                Glide.with(this)
-                        .load(photoUrl)
-                        .placeholder(R.drawable.ic_ava)
-                        .into(binding.imgAvatar);
-            } else {
-                binding.imgAvatar.setImageResource(R.drawable.ic_ava);
-            }
-        }
+        showUserInformation();
 
         return binding.getRoot();
     }
+
     public void showUserInformation() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) return;
 
-        String name = user.getDisplayName();
+        // Lấy thông tin cơ bản
         String email = user.getEmail();
         Uri photoUrl = user.getPhotoUrl();
+        String uid = user.getUid();
 
-        if (name == null || name.isEmpty()) {
-            binding.tvName.setVisibility(View.GONE);
-        } else {
-            binding.tvName.setVisibility(View.VISIBLE);
-            binding.tvName.setText(name);
-        }
-        binding.tvEmail.setText(email != null ? email : "No email available");
+        // Dùng hàm helper từ MainActivity để lấy tên người dùng
+        MainActivity.getUserName(uid, new MainActivity.UserNameCallback() {
+            @Override
+            public void onUserNameLoaded(String name) {
+                if (isAdded() && getActivity() != null) { // Kiểm tra fragment còn attached
+                    binding.tvName.setText(name);
+                    Log.d(TAG, "Tên người dùng đã được tải: " + name);
+                }
+            }
+        });
+
+        binding.tvEmail.setText(email != null ? email : "Không có email");
 
         if (photoUrl != null) {
-            Glide.with(this).load(photoUrl).into(binding.imgAvatar);
+            Glide.with(this)
+                    .load(photoUrl)
+                    .placeholder(R.drawable.ic_ava)
+                    .into(binding.imgAvatar);
         } else {
             binding.imgAvatar.setImageResource(R.drawable.ic_ava);
         }
     }
+
     @Override
     public void onResume() {
         super.onResume();
         showUserInformation();
     }
-
 }
