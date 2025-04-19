@@ -246,7 +246,10 @@ public class PostDetailTenantActivity extends AppCompatActivity {
         } else {
             viewPagerImages.setVisibility(View.VISIBLE);
             tvImageCounter.setVisibility(View.VISIBLE);
-            imageSliderAdapter = new ImageSliderAdapter(this, images);
+            imageSliderAdapter = new ImageSliderAdapter(this,images,
+                    imageUrl -> {
+                        // Xử lý khi nhấn vào ảnh (nếu cần)
+                    });
             viewPagerImages.setAdapter(imageSliderAdapter);
             updateImageCounter(images.size());
             viewPagerImages.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {

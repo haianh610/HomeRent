@@ -45,7 +45,7 @@ import java.util.concurrent.atomic.AtomicBoolean; // Thêm import này
 
 public class PostManagementFragment extends Fragment implements PostManagementAdapter.OnPostActionListener {
 
-    private static final String TAG = "PostManagementFragment";
+    public static final String TAG = "PostManagementFragmentTag"; // Định nghĩa TAG duy nhất
 
     private RecyclerView recyclerViewManagePosts;
     private FloatingActionButton fabAddPost;

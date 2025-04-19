@@ -25,6 +25,7 @@ import androidx.fragment.app.FragmentTransaction;
 import com.example.homerent.ChangeAccountActivity;
 import com.example.homerent.R;
 import com.example.homerent.fragment.landlord.FragmentAccount;
+import com.example.homerent.fragment.landlord.FragmentAccount;
 import com.example.homerent.fragment.landlord.PostManagementFragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigation.NavigationBarView;
@@ -38,6 +39,12 @@ public class LandlordHomeActivity extends AppCompatActivity {
 
     // Khởi tạo FragmentChangeAccount để truy cập được setImageUri() và setBitmapImage()
     private ChangeAccountActivity fragmentChangeAccount;
+
+    private String currentFragmentTag = PostManagementFragment.TAG; // Mặc định là tag của fragment đầu tiên
+    private static final String SAVED_FRAGMENT_TAG = "saved_fragment_tag"; // Key để lưu tag
+
+    private static final String TAG_ACTIVITY = "LandlordHomeActivity"; // TAG cho Activity log
+
 
     // Xử lý chọn ảnh từ gallery
     private final ActivityResultLauncher<Intent> mActivityResultLauncher = registerForActivityResult(

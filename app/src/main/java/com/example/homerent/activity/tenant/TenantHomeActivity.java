@@ -82,9 +82,6 @@ public class TenantHomeActivity extends AppCompatActivity {
                     selectedFragment = TenantAccountFragment.newInstance(); // Tạo fragment tài khoản
                     selectedTag = TenantAccountFragment.TAG;
                     // --- Hết sửa ---
-                    // Không cần Toast nữa
-                    // Toast.makeText(this, "Chức năng Tài khoản chưa có", Toast.LENGTH_SHORT).show();
-                    // return false; // Bỏ return false ở đây
                 }
             }
 
