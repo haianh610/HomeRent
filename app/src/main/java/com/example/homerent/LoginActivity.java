@@ -66,6 +66,7 @@ public class LoginActivity extends AppCompatActivity {
                                             Intent intent;
                                             if ("landlord".equals(role)) {
                                                 intent = new Intent(LoginActivity.this, LandlordHomeActivity.class);
+
                                             } else {
                                                 intent = new Intent(LoginActivity.this, TenantHomeActivity.class);
                                             }
