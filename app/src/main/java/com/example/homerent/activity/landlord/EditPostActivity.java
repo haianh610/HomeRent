@@ -191,13 +191,13 @@ public class EditPostActivity extends AppCompatActivity implements OnMapReadyCal
         setupImagePicker();
 
         // Load address data FIRST
+        setInputsEnabled(false);
         loadAddressData(); // This will call setupAutoCompleteTextViews upon completion
 
         // Setup Button Listeners
         setupButtonClickListeners();
 
-        // Load Existing Post Data AFTER address data is ready for spinners
-        // loadExistingPostData(postId); // Moved call inside loadAddressData's success path
+
     }
 
     private void bindViews() {
@@ -247,6 +247,8 @@ public class EditPostActivity extends AppCompatActivity implements OnMapReadyCal
 
     // loadAddressData - Load existing post data *after* address data is ready
     private void loadAddressData() {
+        progressBarEditPost.setVisibility(View.VISIBLE); // Hiển thị loading cho cả việc load address data
+        setInputsEnabled(false); // Vô hiệu hóa input
         try {
             InputStream is = getAssets().open("donvihanhchinh.json"); // Tên file JSON
             Reader reader = new InputStreamReader(is, StandardCharsets.UTF_8);
@@ -267,7 +269,7 @@ public class EditPostActivity extends AppCompatActivity implements OnMapReadyCal
                 Log.d(TAG, "Loaded " + allProvinces.size() + " provinces, " + allDistricts.size() + " districts, " + allCommunes.size() + " communes.");
 
                 // Sắp xếp Tỉnh/Thành phố
-                Collections.sort(allProvinces, (p1, p2) -> p1.getName().compareTo(p2.getName()));
+                allProvinces.sort((p1, p2) -> p1.getName().compareTo(p2.getName()));
 
                 // Setup các AutoCompleteTextView
                 setupAutoCompleteTextViews();
@@ -284,10 +286,14 @@ public class EditPostActivity extends AppCompatActivity implements OnMapReadyCal
         } catch (IOException e) {
             Log.e(TAG, "Error reading address JSON file", e);
             Toast.makeText(this, "Lỗi đọc file dữ liệu địa chỉ.", Toast.LENGTH_SHORT).show();
+            progressBarEditPost.setVisibility(View.GONE); // Ẩn PB nếu lỗi address data
+            setInputsEnabled(true); // Bật lại input
             finish(); // Không thể tiếp tục nếu lỗi nghiêm trọng
         } catch (com.google.gson.JsonSyntaxException e) {
             Log.e(TAG, "Error parsing address JSON file", e);
             Toast.makeText(this, "Lỗi định dạng file dữ liệu địa chỉ.", Toast.LENGTH_SHORT).show();
+            progressBarEditPost.setVisibility(View.GONE); // Ẩn PB nếu lỗi address data
+            setInputsEnabled(true); // Bật lại input
             finish(); // Không thể tiếp tục nếu lỗi nghiêm trọng
         }
     }
@@ -395,46 +401,59 @@ public class EditPostActivity extends AppCompatActivity implements OnMapReadyCal
         }
     }
 
-    // --- Load Existing Data ---
+    // loadExistingPostData: Quản lý ProgressBar và setInputsEnabled
     private void loadExistingPostData(String postIdToLoad) {
         Log.d(TAG, "Loading existing data for post: " + postIdToLoad);
-        progressBarEditPost.setVisibility(View.VISIBLE);
-        setInputsEnabled(false); // Disable inputs while loading
+        // ProgressBar đã được bật từ loadAddressData
+        // setInputsEnabled(false) cũng đã được gọi
 
         DocumentReference postRef = db.collection("posts").document(postIdToLoad);
         postRef.get().addOnCompleteListener(task -> {
-            if (!isDestroyed()) { // Check if activity is still valid
+            if (!isDestroyed()) {
+                // --- ẨN PROGRESS BAR VÀ BẬT INPUT KHI LOAD XONG (CẢ SUCCESS VÀ FAILURE) ---
                 progressBarEditPost.setVisibility(View.GONE);
-                setInputsEnabled(true); // Re-enable inputs
+                // Chỉ bật lại input nếu không gặp lỗi nghiêm trọng khiến activity finish
+                boolean shouldFinishOnError = false;
+                // -----------------------------------------------------------------------
 
                 if (task.isSuccessful()) {
                     DocumentSnapshot document = task.getResult();
                     if (document != null && document.exists()) {
                         existingPost = document.toObject(Post.class);
                         if (existingPost != null) {
-                            existingPost.setPostId(document.getId()); // Ensure ID is set
+                            existingPost.setPostId(document.getId());
 
                             // *** Ownership Check ***
                             if (!currentUser.getUid().equals(existingPost.getUserId())) {
                                 Toast.makeText(this, "Bạn không có quyền chỉnh sửa tin này.", Toast.LENGTH_LONG).show();
-                                Log.w(TAG, "User " + currentUser.getUid() + " attempting to edit post owned by " + existingPost.getUserId());
-                                finish();
-                                return;
+                                shouldFinishOnError = true; // Đánh dấu để finish
+                            } else {
+                                // Populate UI with loaded data
+                                populateUiWithPostData(existingPost);
+                                // Bật input sau khi populate thành công
+                                setInputsEnabled(true);
                             }
-
-                            // Populate UI with loaded data
-                            populateUiWithPostData(existingPost);
-
                         } else {
                             handleLoadError("Không thể đọc dữ liệu tin đăng.");
+                            shouldFinishOnError = true;
                         }
                     } else {
                         Log.d(TAG, "No such document for postId: " + postIdToLoad);
                         handleLoadError("Tin đăng không tồn tại.");
+                        shouldFinishOnError = true;
                     }
                 } else {
                     Log.w(TAG, "Error getting existing post data.", task.getException());
                     handleLoadError("Lỗi tải dữ liệu: " + Objects.requireNonNull(task.getException()).getMessage());
+                    shouldFinishOnError = true;
+                }
+
+                // Kết thúc activity nếu có lỗi nghiêm trọng
+                if (shouldFinishOnError) {
+                    finish();
+                } else if(!task.isSuccessful()){
+                    // Nếu chỉ là lỗi tải nhưng không finish, vẫn bật lại input
+                    setInputsEnabled(true);
                 }
             }
         });
@@ -467,7 +486,6 @@ public class EditPostActivity extends AppCompatActivity implements OnMapReadyCal
     private void handleLoadError(String message) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
         // Finish activity on critical load errors
-        finish();
     }
     // --- Populate UI ---
     private void populateUiWithPostData(Post post) {
@@ -730,17 +748,16 @@ public class EditPostActivity extends AppCompatActivity implements OnMapReadyCal
         }
     }
 
-    // --- Update Logic ---
     private void attemptUpdatePost() {
         if (!validateInput()) {
             return;
         }
 
-        progressBarEditPost.setVisibility(View.VISIBLE);
-        btnUpdatePost.setEnabled(false);
+        progressBarEditPost.setVisibility(View.VISIBLE); // *** HIỂN THỊ LOADING KHI LƯU ***
+        btnUpdatePost.setEnabled(false); // Vô hiệu hóa nút lưu
+        setInputsEnabled(false); // Vô hiệu hóa các input khác
 
-        // --- Complex Image Handling ---
-        uploadNewImagesAndUpdatePost();
+        uploadNewImagesAndUpdatePost(); // Bắt đầu quá trình upload/lưu
     }
 
     private void uploadNewImagesAndUpdatePost() {
@@ -903,7 +920,7 @@ public class EditPostActivity extends AppCompatActivity implements OnMapReadyCal
 
 
     private void saveDataToFirestore(List<String> finalImageUrls) {
-        if (currentUser == null || postId == null || !validateInput()) {
+        if (currentUser == null || postId == null ) {
             showErrorAndReset("Lỗi: Không thể cập nhật tin đăng.");
             return;
         }
@@ -965,7 +982,6 @@ public class EditPostActivity extends AppCompatActivity implements OnMapReadyCal
                 .set(updatedPost) // Use set() to overwrite the document with new data
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Post updated successfully: " + postId);
-                    progressBarEditPost.setVisibility(View.GONE);
                     Toast.makeText(EditPostActivity.this, "Cập nhật tin thành công!", Toast.LENGTH_SHORT).show();
                     setResult(Activity.RESULT_OK);
 
@@ -977,11 +993,12 @@ public class EditPostActivity extends AppCompatActivity implements OnMapReadyCal
                 });
     }
 
-    // showErrorAndReset - Change button ID
+    // showErrorAndReset: Đảm bảo ẩn ProgressBar và bật lại nút CẬP NHẬT
     private void showErrorAndReset(String errorMessage) {
         Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
-        progressBarEditPost.setVisibility(View.GONE);
-        btnUpdatePost.setEnabled(true); // Enable the update button
+        progressBarEditPost.setVisibility(View.GONE); // *** ẨN PROGRESS BAR ***
+        btnUpdatePost.setEnabled(true); // *** BẬT LẠI NÚT CẬP NHẬT ***
+        setInputsEnabled(true); // Bật lại các input khác
     }
 
 

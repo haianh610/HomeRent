@@ -171,9 +171,6 @@ public class PostManagementFragment extends Fragment implements PostManagementAd
         if (!isAdded()) return;
         Log.d(TAG, "Loading posts for user: " + userId);
         // --- Tạm ẩn ProgressBar và NoPosts Text khi load ---
-        //progressBar.setVisibility(View.VISIBLE);
-        //textViewNoPosts.setVisibility(View.GONE);
-        //recyclerViewManagePosts.setVisibility(View.GONE);
         // --- Hiển thị ProgressBar khi bắt đầu load ---
         progressBar.setVisibility(View.VISIBLE);
         textViewNoPosts.setVisibility(View.GONE);

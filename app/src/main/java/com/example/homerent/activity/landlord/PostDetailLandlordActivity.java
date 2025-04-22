@@ -30,6 +30,7 @@ import com.example.homerent.R; // Thay R
 //import com.example.homerent.activity.landlord.EditPostActivity;
 import com.example.homerent.adapter.ImageSliderAdapter;
 import com.example.homerent.model.Post;
+import com.example.homerent.FullScreenMapActivity;
 //import com.example.homerent.model.User; // Model User nếu có
 import com.example.homerent.model.User;
 import com.google.firebase.auth.FirebaseAuth;
@@ -45,6 +46,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
+import android.widget.FrameLayout; // Import FrameLayout
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
@@ -69,6 +78,10 @@ public class PostDetailLandlordActivity extends AppCompatActivity implements Ima
     private Button btnEditPostBottom;
     private ProgressBar progressBarDetail;
     private NestedScrollView scrollViewContent; // Để ẩn/hiện toàn bộ nội dung
+    private Button btnViewFullMap; // Thêm biến cho nút mới
+    private SupportMapFragment detailMapFragment;
+    private GoogleMap detailMap;
+    private LatLng postLatLng; // Lưu tọa độ của bài đăng
 
     private FirebaseFirestore db;
     private FirebaseAuth mAuth;
@@ -132,6 +145,8 @@ public class PostDetailLandlordActivity extends AppCompatActivity implements Ima
         btnEditPostBottom = findViewById(R.id.btnEditPostBottom);
         progressBarDetail = findViewById(R.id.progressBarDetail);
         scrollViewContent = findViewById(R.id.LandlordDetailScrollView);
+        btnViewFullMap = findViewById(R.id.btnViewFullMap); // Thêm dòng này
+
 
         editPostLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
@@ -163,6 +178,21 @@ public class PostDetailLandlordActivity extends AppCompatActivity implements Ima
             getSupportActionBar().setDisplayShowHomeEnabled(true);
         }
         toolbar.setNavigationOnClickListener(v -> onBackPressed());
+
+        // Lấy SupportMapFragment
+        detailMapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.mapDetailFragmentContainer);
+        if (detailMapFragment != null) {
+            detailMapFragment.getMapAsync(this::onMapReady); // Lấy map bất đồng bộ
+        } else {
+            Log.e(TAG, "Map fragment not found!");
+            btnViewFullMap = findViewById(R.id.btnViewFullMap); // Cần ánh xạ để ẩn
+            if(btnViewFullMap != null) btnViewFullMap.setVisibility(View.GONE);
+        }
+
+        // Ánh xạ và gán Listener cho nút xem bản đồ
+        btnViewFullMap = findViewById(R.id.btnViewFullMap);
+        btnViewFullMap.setOnClickListener(v -> openFullScreenMap());
 
         // Load dữ liệu
         loadPostDetails();
@@ -264,6 +294,22 @@ public class PostDetailLandlordActivity extends AppCompatActivity implements Ima
                 }
             });
         }
+        // Lưu tọa độ
+        if (currentPost.getLatitude() != 0 || currentPost.getLongitude() != 0) {
+            postLatLng = new LatLng(currentPost.getLatitude(), currentPost.getLongitude());
+            btnViewFullMap.setVisibility(View.VISIBLE);
+            findViewById(R.id.mapDetailFragmentContainer).setVisibility(View.VISIBLE); // Đảm bảo fragment hiển thị
+
+            // Nếu map đã sẵn sàng, cập nhật ngay
+            if (detailMap != null) {
+                updateDetailMapMarker(postLatLng, currentPost.getTitle());
+            }
+            // Nếu map chưa sẵn sàng, onMapReady sẽ tự cập nhật sau
+        } else {
+            postLatLng = null;
+            btnViewFullMap.setVisibility(View.GONE);
+            Log.w(TAG,"Post has no valid coordinates (0,0). Hiding map.");
+        }
     }
 
     private void updateImageCounter(int totalImages) {
@@ -285,6 +331,48 @@ public class PostDetailLandlordActivity extends AppCompatActivity implements Ima
             intent.putStringArrayListExtra(FullScreenImageViewerActivity.EXTRA_IMAGE_URLS, new ArrayList<>(postImageUrls));
             intent.putExtra(FullScreenImageViewerActivity.EXTRA_START_POSITION, position);
             startActivity(intent);
+        }
+    }
+
+    public void onMapReady(@NonNull GoogleMap googleMap) {
+        Log.d(TAG, "Detail Map Ready");
+        detailMap = googleMap;
+        // Cấu hình UI cho bản đồ nhỏ (ít tương tác)
+        detailMap.getUiSettings().setZoomControlsEnabled(false);
+        detailMap.getUiSettings().setScrollGesturesEnabled(false);
+        detailMap.getUiSettings().setZoomGesturesEnabled(false);
+        detailMap.getUiSettings().setMapToolbarEnabled(false); // Tắt nút mở Google Maps mặc định
+
+        // Nếu tọa độ đã có khi map sẵn sàng, cập nhật marker
+        if (postLatLng != null) {
+            updateDetailMapMarker(postLatLng, currentPost != null ? currentPost.getTitle() : "Vị trí");
+        }
+    }
+
+    // Hàm cập nhật marker và camera cho bản đồ nhỏ
+    private void updateDetailMapMarker(LatLng latLng, String title) {
+        if (detailMap == null || latLng == null) return;
+        Log.d(TAG, "Updating detail map marker at: " + latLng.latitude + "," + latLng.longitude);
+        detailMap.clear(); // Xóa marker cũ (nếu có)
+        detailMap.addMarker(new MarkerOptions().position(latLng).title(title));
+        detailMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f)); // Zoom vừa phải
+    }
+
+    // Hàm mở Activity bản đồ toàn màn hình
+    private void openFullScreenMap() {
+        if (postLatLng != null && currentPost != null) {
+            Intent intent = new Intent(this, FullScreenMapActivity.class);
+            intent.putExtra(FullScreenMapActivity.EXTRA_LATITUDE, postLatLng.latitude);
+            intent.putExtra(FullScreenMapActivity.EXTRA_LONGITUDE, postLatLng.longitude);
+            // Tạo địa chỉ đầy đủ để hiển thị trên map và tìm kiếm
+            String fullAddress = (currentPost.getAddress() != null ? currentPost.getAddress() + ", " : "")
+                    + currentPost.getWard() + ", "
+                    + currentPost.getDistrict() + ", "
+                    + currentPost.getCity();
+            intent.putExtra(FullScreenMapActivity.EXTRA_ADDRESS, fullAddress.replaceAll("^, ", "").trim());
+            startActivity(intent);
+        } else {
+            Toast.makeText(this, "Không có thông tin vị trí để hiển thị.", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -377,16 +465,4 @@ public class PostDetailLandlordActivity extends AppCompatActivity implements Ima
         }
     }
 
-    // Model User (Ví dụ - bạn cần tạo model này nếu chưa có)
-    // package com.example.homerent.model;
-    // public class User {
-    //     private String name;
-    //     private String avatarUrl;
-    //     // Các trường khác...
-    //     public User() {}
-    //     public String getName() { return name; }
-    //     public void setName(String name) { this.name = name; }
-    //     public String getAvatarUrl() { return avatarUrl; }
-    //     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
-    // }
 }

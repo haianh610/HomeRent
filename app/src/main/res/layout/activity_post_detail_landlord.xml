@@ -269,7 +269,44 @@
                 app:layout_constraintTop_toBottomOf="@id/tvBedroomsLabel"
                 tools:text="Tin đăng ngày: 07/03/2025" />
 
-            <!-- Landlord Info Card -->
+            <!-- Vị trí trên bản đồ -->
+            <TextView
+                android:id="@+id/tvMapLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="Vị trí trên bản đồ"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tvPostingDateDetail" />
+
+            <!-- Sử dụng FrameLayout để bắt sự kiện click dễ dàng hơn -->
+            <androidx.fragment.app.FragmentContainerView
+                android:id="@+id/mapDetailFragmentContainer"
+                android:name="com.google.android.gms.maps.SupportMapFragment"
+                android:layout_width="0dp"
+                android:layout_height="180dp"
+                android:layout_marginTop="8dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tvMapLabel" />
+
+            <!-- NÚT MỚI ĐỂ XEM BẢN ĐỒ -->
+            <Button
+                android:id="@+id/btnViewFullMap"
+                style="@style/Widget.MaterialComponents.Button.TextButton.Icon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Xem bản đồ lớn"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/mapDetailFragmentContainer"
+                android:visibility="gone" /> <!-- Ban đầu ẩn đi -->
+
+
+            <!-- Landlord Info Card (Constraint vào nút xem bản đồ hoặc map container) -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/cardLandlordInfo"
                 android:layout_width="match_parent"
@@ -280,7 +317,9 @@
                 app:cardElevation="0dp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvPostingDateDetail">
+                app:layout_constraintTop_toBottomOf="@id/btnViewFullMap"> <!-- Đổi constraint top -->
+            <!-- Hoặc constraint vào mapDetailFragmentContainer nếu muốn gần hơn -->
+            <!-- app:layout_constraintTop_toBottomOf="@id/mapDetailFragmentContainer" -->
 
                 <LinearLayout
                     android:layout_width="match_parent"
