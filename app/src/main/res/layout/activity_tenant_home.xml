@@ -5,25 +5,11 @@
     android:id="@+id/layout_tenant_home"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     tools:context=".activity.tenant.TenantHomeActivity">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appBarLayoutTenantHome"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-        android:background="?attr/colorPrimary"> <!-- Màu nền AppBar -->
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbarTenantHome"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
-            app:title="Trang chủ" /> <!-- Title sẽ được cập nhật bởi Activity -->
-
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <!-- Fragment Container phải có layout_behavior -->
+    <!-- Fragment Container -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/fragmentContainerTenant"
         android:layout_width="match_parent"
@@ -31,7 +17,7 @@
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         tools:layout="@layout/fragment_post_view" />
 
-    <!-- Bottom Navigation View -->
+    <!-- Bottom Navigation View (Remains the same) -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNavigationViewTenant"
         android:layout_width="match_parent"
@@ -40,4 +26,4 @@
         android:background="?android:attr/windowBackground"
         app:menu="@menu/tenant_bottom_nav_menu" />
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>

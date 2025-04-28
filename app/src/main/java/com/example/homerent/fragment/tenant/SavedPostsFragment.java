@@ -43,7 +43,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class SavedPostsFragment extends Fragment implements TenantHomeActivity.SearchableFragment, PostViewAdapter.OnPostActionListener {
+public class SavedPostsFragment extends Fragment implements PostViewAdapter.OnPostActionListener {
 
     public static final String TAG = "SavedPostsFragment";
     private static final String ARG_PARAM1 = "param1";
@@ -247,13 +247,7 @@ public class SavedPostsFragment extends Fragment implements TenantHomeActivity.S
         adapter.notifyDataSetChanged();
     }
 
-    // --- Interface Implementations ---
 
-    @Override
-    public void onSearchQuery(String query) {
-        Log.d(TAG, "Search query received in SavedPosts: " + query);
-        filterAndDisplaySavedPosts(query);
-    }
 
     @Override
     public void onPostClick(int position) {
@@ -320,7 +314,6 @@ public class SavedPostsFragment extends Fragment implements TenantHomeActivity.S
         loadSavedPosts();
         // Cập nhật lại title toolbar khi quay lại fragment này
         if (getActivity() instanceof TenantHomeActivity) {
-            ((TenantHomeActivity) getActivity()).updateToolbarTitle(TAG);
         }
     }
 }

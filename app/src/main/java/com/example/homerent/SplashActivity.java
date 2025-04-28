@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -16,6 +17,9 @@ import com.example.homerent.activity.tenant.TenantHomeActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
+
+import com.google.android.libraries.places.api.Places; // Thêm import này
+import com.google.android.libraries.places.api.net.PlacesClient; // Có thể dùng nếu cần client ngay
 
 @SuppressLint("CustomSplashScreen") // Chỉ dùng nếu bạn muốn bỏ cảnh báo mặc định
 public class SplashActivity extends AppCompatActivity {
@@ -30,12 +34,55 @@ public class SplashActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_splash);
 
+        // --- KHỞI TẠO PLACES SDK ---
+        initializePlacesSDK();
+        // -------------------------
+
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
 
-        // Sử dụng Handler để trì hoãn việc kiểm tra một chút (tùy chọn, để user thấy splash)
-        new Handler(Looper.getMainLooper()).postDelayed(this::checkUserStatus, 1500); // 1.5 giây delay
+        // Sử dụng Handler để trì hoãn việc kiểm tra một chút
+        new Handler(Looper.getMainLooper()).postDelayed(this::checkUserStatus, 500);
     }
+
+    // --- HÀM KHỞI TẠO PLACES SDK ---
+    private void initializePlacesSDK() {
+        // Lấy API Key từ manifest placeholders (được định nghĩa trong build.gradle)
+        // Hoặc từ strings.xml nếu bạn lưu ở đó
+        String apiKey = "";
+        try {
+            // Cách 1: Lấy từ Manifest Placeholders
+            android.content.pm.ApplicationInfo ai = getPackageManager().getApplicationInfo(getPackageName(), android.content.pm.PackageManager.GET_META_DATA);
+            Bundle bundle = ai.metaData;
+            apiKey = bundle.getString("com.google.android.geo.API_KEY"); // Tên key trong manifest
+
+            // Cách 2: Lấy từ strings.xml (nếu bạn dùng cách này)
+            // apiKey = getString(R.string.MAPS_API_KEY);
+
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "Failed to load meta-data, NameNotFound: " + e.getMessage());
+        } catch (NullPointerException e) {
+            Log.e(TAG, "Failed to load meta-data, NullPointer: " + e.getMessage());
+        }
+
+
+        if (TextUtils.isEmpty(apiKey) || apiKey.equals("YOUR_API_KEY_HERE") || apiKey.equals("")) { // Kiểm tra kỹ giá trị rỗng hoặc placeholder
+            Log.e(TAG, "*** Places API Key is missing or invalid in AndroidManifest.xml or resources! ***");
+            // Bạn có thể hiển thị lỗi cho người dùng hoặc vô hiệu hóa tính năng Places
+            Toast.makeText(this, "Lỗi cấu hình API Key cho dịch vụ vị trí.", Toast.LENGTH_LONG).show();
+            // Không return ở đây, có thể các phần khác của app vẫn chạy được
+        } else {
+            // Initialize the SDK
+            if (!Places.isInitialized()) {
+                Places.initialize(getApplicationContext(), apiKey);
+                // placesClient = Places.createClient(this); // Khởi tạo client nếu cần dùng ngay
+                Log.i(TAG, "Places SDK Initialized successfully.");
+            } else {
+                Log.i(TAG, "Places SDK already initialized.");
+            }
+        }
+    }
+    // -------------------------------
 
     private void checkUserStatus() {
         FirebaseUser currentUser = mAuth.getCurrentUser();

@@ -115,7 +115,6 @@ public class TenantAccountFragment extends Fragment {
         super.onResume();
         // Cập nhật title toolbar
         if (getActivity() instanceof TenantHomeActivity) {
-            ((TenantHomeActivity) getActivity()).updateToolbarTitle(TAG);
         }
         // Cập nhật lại thông tin nếu có thay đổi
         showUserInfo();
