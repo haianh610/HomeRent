@@ -99,7 +99,7 @@ public class TenantHomeActivity extends AppCompatActivity {
                 }
             } else if (itemId == R.id.navigation_account) {
                 if (!currentFragmentTag.equals(TenantAccountFragment.TAG)) {
-                    selectedTag = TenantAccountFragment.TAG;
+                    selectedTag = TenantAccountFragment.TAG; // Dùng TAG từ TenantAccountFragment
                     shouldLoad = true;
                 }
             }
@@ -110,7 +110,7 @@ public class TenantHomeActivity extends AppCompatActivity {
                     // Create new instance based on tag
                     if (PostViewFragment.TAG.equals(selectedTag)) selectedFragment = PostViewFragment.newInstance();
                     else if (SavedPostsFragment.TAG.equals(selectedTag)) selectedFragment = SavedPostsFragment.newInstance();
-                    else if (TenantAccountFragment.TAG.equals(selectedTag)) selectedFragment = TenantAccountFragment.newInstance();
+                    else if (TenantAccountFragment.TAG.equals(selectedTag)) selectedFragment = TenantAccountFragment.newInstance(); // Gọi newInstance()
                 } else {
                     selectedFragment = existingFragment; // Use existing if found
                 }

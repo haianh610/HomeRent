@@ -114,36 +114,4 @@ public class LandlordHomeActivity extends AppCompatActivity {
         transaction.replace(R.id.fragmentContainerLandlord, fragment);
         transaction.commit();
     }
-
-    // Mở gallery chọn ảnh
-    public void openGallery(ChangeAccountActivity fragment) {
-        this.fragmentChangeAccount = fragment; // Lưu lại instance đang dùng
-        Intent intent = new Intent(Intent.ACTION_PICK);
-        intent.setType("image/*");
-        mActivityResultLauncher.launch(Intent.createChooser(intent, "Chọn ảnh đại diện"));
-    }
-
-    // Cấp quyền READ_EXTERNAL_STORAGE
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == MY_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (fragmentChangeAccount != null) {
-                    openGallery(fragmentChangeAccount);
-                }
-            } else {
-                Toast.makeText(this, "Vui lòng cấp quyền truy cập ảnh", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    // Hàm để FragmentAccount cập nhật lại thông tin sau khi chỉnh sửa
-    public void reloadUserInfo() {
-        Fragment currentFragment = getSupportFragmentManager().findFragmentById(R.id.fragmentContainerLandlord);
-        if (currentFragment instanceof FragmentAccount) {
-            ((FragmentAccount) currentFragment).showUserInformation();
-        }
-    }
 }

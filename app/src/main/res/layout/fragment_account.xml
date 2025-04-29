@@ -1,140 +1,222 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/fragment_container"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/account_fragment_root"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:padding="16dp"
-    android:orientation="vertical"
-    android:background="#FFFFFF">
+    android:layout_height="match_parent"> <!-- Đặt tên chung hoặc theo vai trò -->
 
-    <!-- Thẻ thông tin người dùng -->
-    <androidx.cardview.widget.CardView
+    <!-- Nút Chuyển sang Đăng tin / Tìm tin -->
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        android:elevation="4dp"
-        android:padding="16dp"
-        app:cardCornerRadius="16dp"
-        android:backgroundTint="#EAE4EF">
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingBottom="80dp"> <!-- Padding để không bị che bởi nút dưới -->
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:orientation="vertical"
+            android:padding="16dp">
 
-            <de.hdodenhof.circleimageview.CircleImageView
-                android:id="@+id/imgAvatar"
-                android:layout_width="64dp"
-                android:layout_height="64dp"
-                android:src="@drawable/ic_ava"
-                android:layout_marginEnd="16dp"/>
+            <!-- Thẻ thông tin người dùng (M3 Style) -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+                app:cardCornerRadius="16dp">
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <de.hdodenhof.circleimageview.CircleImageView
+                        android:id="@+id/imgAvatar"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:layout_marginEnd="16dp"
+                        android:src="@drawable/person_24px"
+                        />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/tvName"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Tên người dùng"
+                            android:textAppearance="?attr/textAppearanceTitleMedium"
+                            android:textColor="?attr/colorOnSurface" />
+
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/tvEmail"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="example@gmail.com"
+                            android:textAppearance="?attr/textAppearanceBodyMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Các mục chức năng (Dùng List Item Style của M3) -->
+            <!-- Có thể dùng RecyclerView nếu danh sách dài hoặc cần tùy biến nhiều -->
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:background="@drawable/bg_rounded_surface_container"
+                android:orientation="vertical"
+                android:paddingVertical="8dp">
 
-                <TextView
-                    android:id="@+id/tvName"
-                    android:layout_width="wrap_content"
+                <!-- Mục: Thông tin tài khoản -->
+                <LinearLayout
+                    android:id="@+id/llChangeAccount"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Tên người dùng"
-                    android:textStyle="bold"
-                    android:textSize="18sp"
-                    android:textColor="#000000" />
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="16dp">
 
-                <TextView
-                    android:id="@+id/tvEmail"
-                    android:layout_width="wrap_content"
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/manage_accounts"
+                        app:tint="?attr/colorOnSurfaceVariant" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/tv_ttTK"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:text="Thông tin tài khoản"
+                        android:textAppearance="?attr/textAppearanceBodyLarge"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_chevron_right"
+                        app:tint="?attr/colorOnSurfaceVariant" />
+                </LinearLayout>
+
+                <com.google.android.material.divider.MaterialDivider
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="example@gmail.com"
-                    android:textSize="14sp"
-                    android:textColor="#555555" />
+                    android:layout_marginHorizontal="16dp" />
+
+                <!-- Mục: Đổi mật khẩu -->
+                <LinearLayout
+                    android:id="@+id/llChangePassword"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="16dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_password"
+                        app:tint="?attr/colorOnSurfaceVariant" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/tv_doiMk"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:text="Đổi mật khẩu"
+                        android:textAppearance="?attr/textAppearanceBodyLarge"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_chevron_right"
+                        app:tint="?attr/colorOnSurfaceVariant" />
+                </LinearLayout>
+
+                <com.google.android.material.divider.MaterialDivider
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp" />
+
+                <!-- Mục: Đăng xuất -->
+                <LinearLayout
+                    android:id="@+id/llLogout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="16dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/logout"
+                        app:tint="?attr/colorError" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/tv_dangXuat"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:text="Đăng xuất"
+                        android:textAppearance="?attr/textAppearanceBodyLarge"
+                        android:textColor="?attr/colorError" />
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_chevron_right"
+                        app:tint="?attr/colorError" />
+                </LinearLayout>
             </LinearLayout>
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
 
-    <!-- Các mục chức năng -->
-    <LinearLayout
-        android:layout_width="match_parent"
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <FrameLayout
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:divider="?android:attr/dividerHorizontal"
-        android:showDividers="middle"
-        android:dividerPadding="8dp">
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="16dp">
 
-        <!-- Mục: Thông tin tài khoản -->
-        <LinearLayout
-            android:layout_width="match_parent"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSwitchMode"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingVertical="12dp"
-            android:gravity="center_vertical">
+            app:icon="@drawable/ic_switch_account"
+            app:iconGravity="textStart"
+            tools:text="Chuyển sang đăng tin" />
 
-            <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:src="@drawable/manage_accounts" />
-
-            <TextView
-                android:id="@+id/tv_ttTK"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:text="Thông tin tài khoản"
-                android:textSize="18sp"
-                android:textColor="#000000" />
-        </LinearLayout>
-
-        <!-- Mục: Đổi mật khẩu -->
-        <LinearLayout
-            android:layout_width="match_parent"
+        <ProgressBar
+            android:id="@+id/progressBarSwitchMode"
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingVertical="12dp"
-            android:gravity="center_vertical">
+            android:layout_gravity="center"
+            android:elevation="2dp"
+            android:visibility="gone"
+            android:indeterminateTint="?attr/colorPrimary"/> <!-- Màu progress -->
 
-            <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:src="@drawable/password" />
+    </FrameLayout>
 
-            <TextView
-                android:id="@+id/tv_doiMk"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:text="Đổi mật khẩu"
-                android:textSize="18sp"
-                android:textColor="#000000" />
-        </LinearLayout>
-
-        <!-- Mục: Đăng xuất -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingVertical="12dp"
-            android:gravity="center_vertical">
-
-            <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:src="@drawable/logout" />
-
-            <TextView
-                android:id="@+id/tv_dangXuat"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:text="Đăng xuất"
-                android:textSize="18sp"
-                android:textColor="#000000" />
-        </LinearLayout>
-    </LinearLayout>
-
-</LinearLayout>
+</FrameLayout>
