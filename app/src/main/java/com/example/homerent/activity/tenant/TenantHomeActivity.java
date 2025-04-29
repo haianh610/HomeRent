@@ -64,11 +64,11 @@ public class TenantHomeActivity extends AppCompatActivity {
             // Áp padding top cho root layout
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0);
 
-            // Điều chỉnh margin bottom cho BottomNavigationView
-            ViewGroup.MarginLayoutParams navParams = (ViewGroup.MarginLayoutParams) bottomNavigationView.getLayoutParams();
-            // Chỉ đặt margin khi bàn phím ẩn
-            navParams.bottomMargin = (imeInsets.bottom > 0) ? 0 : systemBars.bottom;
-            bottomNavigationView.setLayoutParams(navParams);
+//            // Điều chỉnh margin bottom cho BottomNavigationView
+//            ViewGroup.MarginLayoutParams navParams = (ViewGroup.MarginLayoutParams) bottomNavigationView.getLayoutParams();
+//            // Chỉ đặt margin khi bàn phím ẩn
+//            navParams.bottomMargin = (imeInsets.bottom > 0) ? 0 : systemBars.bottom;
+//            bottomNavigationView.setLayoutParams(navParams);
 
             return windowInsets; // Trả về gốc
         });

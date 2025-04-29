@@ -47,33 +47,33 @@ public class LandlordHomeActivity extends AppCompatActivity {
 
 
     // Xử lý chọn ảnh từ gallery
-    private final ActivityResultLauncher<Intent> mActivityResultLauncher = registerForActivityResult(
-            new ActivityResultContracts.StartActivityForResult(),
-            new ActivityResultCallback<ActivityResult>() {
-                @Override
-                public void onActivityResult(ActivityResult result) {
-                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-                        Uri uri = result.getData().getData();
-                        if (fragmentChangeAccount != null) {
-                            fragmentChangeAccount.setImageUri(uri);
-                            try {
-                                Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), uri);
-                                fragmentChangeAccount.setBitmapImage(bitmap);
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                }
-            });
+//    private final ActivityResultLauncher<Intent> mActivityResultLauncher = registerForActivityResult(
+//            new ActivityResultContracts.StartActivityForResult(),
+//            new ActivityResultCallback<ActivityResult>() {
+//                @Override
+//                public void onActivityResult(ActivityResult result) {
+//                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+//                        Uri uri = result.getData().getData();
+//                        if (fragmentChangeAccount != null) {
+//                            fragmentChangeAccount.setImageUri(uri);
+//                            try {
+//                                Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), uri);
+//                                fragmentChangeAccount.setBitmapImage(bitmap);
+//                            } catch (IOException e) {
+//                                e.printStackTrace();
+//                            }
+//                        }
+//                    }
+//                }
+//            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        EdgeToEdge.enable(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_landlord_home);
 
         // Edge to edge layout
-        EdgeToEdge.enable(this);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.layout_landlord_home), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0);
