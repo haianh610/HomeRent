@@ -163,6 +163,7 @@ public class PostViewFragment extends Fragment implements PostViewAdapter.OnPost
             // Handle error - maybe disable search features
         } else {
             placesClient = Places.createClient(requireContext());
+            Log.d(TAG, "PlacesClient created successfully.");
         }
 
 
@@ -211,28 +212,21 @@ public class PostViewFragment extends Fragment implements PostViewAdapter.OnPost
     private void setupSearchViewAndChips() {
         searchView.setupWithSearchBar(searchBar);
 
-        // --- Keep track of the query as it changes ---
+
+
         searchView.getEditText().addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void afterTextChanged(Editable s) {} // Not needed now
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                currentQuery = s.toString(); // Update current query immediately for state saving
-
-                // --- Debouncing Logic ---
-                if (autocompleteRunnable != null) {
-                    autocompleteHandler.removeCallbacks(autocompleteRunnable);
-                }
+                currentQuery = s.toString();
+                Log.d(TAG, "onTextChanged: Query = " + currentQuery);
+                if (autocompleteRunnable != null) { autocompleteHandler.removeCallbacks(autocompleteRunnable); }
                 autocompleteRunnable = () -> {
-                    if (!TextUtils.isEmpty(currentQuery)) {
-                        fetchAutocompleteSuggestions(currentQuery);
-                    } else {
-                        // Clear suggestions if query is empty
-                        autocompleteAdapter.setPredictions(new ArrayList<>());
-                        // Optionally trigger filter to show all results for current filters
-                        // filterAndDisplayPosts();
-                    }
+                    Log.d(TAG, "Runnable executing for query: " + currentQuery); // Xem runnable có chạy không
+                    if (!TextUtils.isEmpty(currentQuery)) { fetchAutocompleteSuggestions(currentQuery); }
+                    // ...
                 };
                 autocompleteHandler.postDelayed(autocompleteRunnable, AUTOCOMPLETE_DELAY_MS);
             }
@@ -242,30 +236,31 @@ public class PostViewFragment extends Fragment implements PostViewAdapter.OnPost
         searchView.getEditText().setOnEditorActionListener((v, actionId, event) -> {
             // currentQuery is already up-to-date thanks to TextWatcher
             searchView.hide(); // Hide keyboard/searchview
-            filterAndDisplayPosts(); // Perform filter with the latest query
+            autocompleteAdapter.setPredictions(new ArrayList<>()); // Xóa gợi ý
             return true; // Indicate handled
         });
 
         // --- Restore query when SearchView is shown ---
         // --- Handle SearchView State Changes (Show/Hide BottomNav) ---
         searchView.addTransitionListener((sv, previousState, newState) -> {
+            Log.d(TAG, "SearchView Transition: " + previousState + " -> " + newState);
             if (bottomNavView != null) {
+                // --- Logic ẩn/hiện BottomNav ---
                 if (newState == SearchView.TransitionState.SHOWING || newState == SearchView.TransitionState.SHOWN) {
-                    // Hide BottomNav
                     bottomNavView.setVisibility(View.GONE);
-                    // Create a new session token when search view opens
-                    sessionToken = AutocompleteSessionToken.newInstance();
-                    // Optionally restore text (though M3 SearchView might handle this better now)
-                    // sv.getEditText().setText(currentQuery);
-                    // sv.getEditText().setSelection(currentQuery.length());
+                    if (newState == SearchView.TransitionState.SHOWING && sessionToken == null) {
+                        sessionToken = AutocompleteSessionToken.newInstance();
+                        Log.d(TAG, "New Session Token created.");
+                    }
                 } else if (newState == SearchView.TransitionState.HIDING || newState == SearchView.TransitionState.HIDDEN) {
-                    // Show BottomNav
                     bottomNavView.setVisibility(View.VISIBLE);
-                    // Clear suggestions when closing
                     autocompleteAdapter.setPredictions(new ArrayList<>());
-                    sessionToken = null; // Invalidate token when closed
-                    // Optional: Trigger filter again if needed when closing without submitting
-                    // filterAndDisplayPosts();
+                    if (newState == SearchView.TransitionState.HIDDEN) {
+                        sessionToken = null;
+                        Log.d(TAG, "SearchView HIDDEN, triggering filterAndDisplayPosts() with query: '" + currentQuery + "'");
+                        // *** GỌI FILTER KHI ĐÃ ẨN HOÀN TOÀN ***
+                        filterAndDisplayPosts();
+                    }
                 }
             }
         });
@@ -278,45 +273,66 @@ public class PostViewFragment extends Fragment implements PostViewAdapter.OnPost
     }
 
     private void fetchAutocompleteSuggestions(String query) {
-        if (placesClient == null) {
-            Log.e(TAG, "PlacesClient is null, cannot fetch suggestions.");
-            return;
-        }
-        if (sessionToken == null) {
-            Log.w(TAG, "Session token is null, creating a new one.");
-            sessionToken = AutocompleteSessionToken.newInstance(); // Create if null
-        }
+        if (placesClient == null) { Log.e(TAG, "fetchAutocompleteSuggestions: placesClient is NULL"); return; }
+        if (sessionToken == null) { Log.w(TAG, "fetchAutocompleteSuggestions: sessionToken is NULL"); sessionToken = AutocompleteSessionToken.newInstance();}
 
-        Log.d(TAG, "Fetching autocomplete for query: " + query);
+        // --- Xây dựng query cuối cùng bao gồm tỉnh/thành phố đã chọn ---
+        String finalQuery;
+        if (selectedProvince != null) { // Chỉ thêm tỉnh nếu đã chọn (không phải "Tất cả")
+            finalQuery = query + ", " + selectedProvince.getName(); // Nối tên tỉnh vào query
+        } else {
+            finalQuery = query;
+        }
+        Log.d(TAG, "fetchAutocompleteSuggestions: Fetching for finalQuery='" + finalQuery + "' with token=" + sessionToken);
+        // -------------------------------------------------------------
 
         FindAutocompletePredictionsRequest.Builder requestBuilder =
                 FindAutocompletePredictionsRequest.builder()
-                        .setQuery(query)
-                        .setCountries("VN") // Filter by country
-                        // Prioritize results near a certain location (optional)
-                        // .setLocationBias(RectangularBounds.newInstance(...))
-                        // Define the types of places to search for
-                        .setTypeFilter(TypeFilter.ADDRESS) // Prioritize addresses
-                        // You could add more types like REGIONS (for districts/cities), ESTABLISHMENT
-                        // .setTypeFilter(TypeFilter.REGIONS)
-                        // Combine types using a list if needed:
-                        // .setTypesFilter(Arrays.asList(TypeFilter.ADDRESS, TypeFilter.REGIONS))
-                        .setSessionToken(sessionToken); // Use the session token
+                        // *** Sử dụng finalQuery ***
+                        .setQuery(finalQuery)
+                        .setCountries("VN")
+                        // .setTypeFilter(TypeFilter.ADDRESS) // Cân nhắc bỏ hoặc dùng GEOCODE/REGIONS nếu ADDRESS quá hẹp
+                        .setTypeFilter(TypeFilter.GEOCODE) // Thử dùng GEOCODE cho kết quả rộng hơn
+                        .setSessionToken(sessionToken);
 
         placesClient.findAutocompletePredictions(requestBuilder.build())
                 .addOnSuccessListener((response) -> {
-                    if (isAdded() && getActivity() != null) { // Check fragment state
+                    if (isAdded() && getActivity() != null) {
                         List<AutocompletePrediction> predictions = response.getAutocompletePredictions();
-                        Log.d(TAG, "Autocomplete predictions received: " + predictions.size());
-                        autocompleteAdapter.setPredictions(predictions);
+                        Log.d(TAG, "Autocomplete SUCCESS: Received " + predictions.size() + " predictions for query '" + finalQuery + "'.");
+
+                        // --- (Tùy chọn) Lọc thêm phía client nếu API vẫn trả về kết quả ngoài tỉnh ---
+                        // Mặc dù nối tên tỉnh thường hiệu quả, đôi khi API vẫn có thể trả về gợi ý hơi lệch.
+                        // Bạn có thể lọc thêm ở đây nếu cần độ chính xác tuyệt đối.
+                        List<AutocompletePrediction> clientFilteredPredictions;
+                        if (selectedProvince != null) {
+                            String provinceNameLower = selectedProvince.getName().toLowerCase(Locale.getDefault());
+                            clientFilteredPredictions = predictions.stream()
+                                    .filter(p -> {
+                                        // Kiểm tra xem tên tỉnh có trong secondary text hoặc full text không
+                                        String secondaryLower = p.getSecondaryText(null) != null ? p.getSecondaryText(null).toString().toLowerCase(Locale.getDefault()) : "";
+                                        String fullLower = p.getFullText(null) != null ? p.getFullText(null).toString().toLowerCase(Locale.getDefault()) : "";
+                                        // Có thể cần logic so khớp tên tỉnh linh hoạt hơn (vd: bỏ chữ "Tỉnh", "Thành phố")
+                                        return secondaryLower.contains(provinceNameLower) || fullLower.contains(provinceNameLower);
+                                    })
+                                    .collect(Collectors.toList());
+                            Log.d(TAG, "Client-side filtered predictions: " + clientFilteredPredictions.size());
+                        } else {
+                            // Không cần lọc phía client nếu chọn "Tất cả"
+                            clientFilteredPredictions = predictions;
+                        }
+                        autocompleteAdapter.setPredictions(clientFilteredPredictions);
+                        // autocompleteAdapter.setPredictions(predictions); // Bỏ lọc phía client nếu thấy không cần thiết
+
                     }
                 })
                 .addOnFailureListener((exception) -> {
                     if (isAdded() && getActivity() != null) {
-                        Log.e(TAG, "Autocomplete prediction fetching failed", exception);
-                        autocompleteAdapter.setPredictions(new ArrayList<>()); // Clear on failure
-                        // Handle specific exceptions like ApiException for details
-                        // if (exception instanceof ApiException) { ... }
+                        // *** LOG LỖI QUAN TRỌNG ***
+                        Log.e(TAG, "Autocomplete FAILED", exception);
+                        autocompleteAdapter.setPredictions(new ArrayList<>());
+                        // Hiển thị lỗi cho người dùng nếu cần
+                        // Toast.makeText(requireContext(), "Lỗi tìm gợi ý: " + exception.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -594,10 +610,14 @@ public class PostViewFragment extends Fragment implements PostViewAdapter.OnPost
     // --- Central Filtering Logic ---
     private void filterAndDisplayPosts() {
         // Get current filter values
-        Province province = selectedProvince;
-        String query = currentQuery;
-        float minPrice = minPriceSelected * 1_000_000; // Convert back to full value
-        float maxPrice = maxPriceSelected * 1_000_000;
+        Province province = selectedProvince; // Biến thành viên
+        String query = currentQuery; // Biến thành viên
+        float minPrice = minPriceSelected * 1_000_000; // Biến thành viên
+        float maxPrice = maxPriceSelected * 1_000_000; // Biến thành viên
+
+        Log.d(TAG, "Filtering with Province: " + (province != null ? province.getName() : "All") +
+                ", Price: " + minPriceSelected + "-" + maxPriceSelected + "M" +
+                ", Query: '" + query + "'");
 
         displayedPostList.clear();
         List<Post> tempList = new ArrayList<>(allPostList);
@@ -726,15 +746,15 @@ public class PostViewFragment extends Fragment implements PostViewAdapter.OnPost
     @Override
     public void onResume() {
         super.onResume();
-        // Cân nhắc load lại saved IDs khi quay lại fragment,
-        // phòng trường hợp lưu/bỏ lưu ở màn hình chi tiết
+        Log.d(TAG, "onResume called. Refreshing filters and saved posts.");
+        // 1. Load lại trạng thái các tin đã lưu
         if (currentUser != null) {
-            // Có thể chỉ load lại IDs và cập nhật adapter thay vì load lại toàn bộ posts
-            loadSavedPostIdsAndUpdateAdapter();
+            loadSavedPostIdsAndUpdateAdapter(); // Hàm này nên chỉ cập nhật set và adapter nếu cần
         }
-        // Cập nhật lại title toolbar khi quay lại fragment này
-        if (getActivity() instanceof TenantHomeActivity) {
-        }
+        // 2. Quan trọng: Áp dụng lại bộ lọc hiện tại vào danh sách bài đăng
+        // Điều này đảm bảo RecyclerView được cập nhật đúng trạng thái filter
+        // ngay cả khi không có gì thay đổi trong saved IDs.
+        filterAndDisplayPosts(); // Gọi lại filter khi quay lại fragment
     }
 
     // Save and restore currentQuery (optional but good practice)

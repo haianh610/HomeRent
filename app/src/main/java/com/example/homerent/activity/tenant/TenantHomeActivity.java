@@ -6,6 +6,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Toast;
@@ -23,6 +24,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentContainerView;
 import androidx.fragment.app.FragmentManager; // Thêm import này
 import androidx.fragment.app.FragmentTransaction; // Thêm import này
 
@@ -43,16 +45,33 @@ import java.util.Objects;
 public class TenantHomeActivity extends AppCompatActivity {
 
     private BottomNavigationView bottomNavigationView;
+    private FragmentContainerView fragmentContainer; // Thêm biến cho container
     private String currentFragmentTag = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-
+        super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_tenant_home);
 
         bottomNavigationView = findViewById(R.id.bottomNavigationViewTenant);
+        fragmentContainer = findViewById(R.id.fragmentContainerTenant); // Đảm bảo ánh xạ
+
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.layout_tenant_home), (v, windowInsets) -> {
+            Insets systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            Insets imeInsets = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
+
+            // Áp padding top cho root layout
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0);
+
+            // Điều chỉnh margin bottom cho BottomNavigationView
+            ViewGroup.MarginLayoutParams navParams = (ViewGroup.MarginLayoutParams) bottomNavigationView.getLayoutParams();
+            // Chỉ đặt margin khi bàn phím ẩn
+            navParams.bottomMargin = (imeInsets.bottom > 0) ? 0 : systemBars.bottom;
+            bottomNavigationView.setLayoutParams(navParams);
+
+            return windowInsets; // Trả về gốc
+        });
 
         if (savedInstanceState == null) {
             loadFragment(PostViewFragment.newInstance(), PostViewFragment.TAG);
@@ -145,6 +164,4 @@ public class TenantHomeActivity extends AppCompatActivity {
         outState.putString("CURRENT_FRAGMENT_TAG", currentFragmentTag);
     }
 
-    // Remove menu methods as Toolbar is gone
-    // Remove performSearch, updateSearchBarText
 }
