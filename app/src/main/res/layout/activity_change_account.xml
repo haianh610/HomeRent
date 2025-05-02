@@ -57,7 +57,6 @@
                     android:layout_gravity="bottom|end"
                     android:contentDescription="Thay đổi ảnh đại diện"
                     app:srcCompat="@drawable/edit_24px"
-                    app:tint="@color/white"
                     app:fabSize="mini" /> <!-- Kích thước nhỏ hơn -->
 
             </FrameLayout>

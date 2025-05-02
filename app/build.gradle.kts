@@ -78,6 +78,7 @@ dependencies {
     implementation(libs.firebase.storage)
     implementation ("com.google.android.gms:play-services-maps:19.1.0")
     implementation("com.google.android.libraries.places:places:4.2.0")
+    implementation ("com.google.android.gms:play-services-location:21.2.0")
     implementation(libs.navigation.fragment)
     implementation(libs.navigation.ui) // Check for latest version
     // implementation 'com.google.android.gms:play-services-location:21.2.0'

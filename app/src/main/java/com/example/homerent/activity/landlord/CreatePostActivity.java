@@ -46,6 +46,7 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
@@ -84,6 +85,15 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.stream.Collectors; // Cần Java 8+
 
+import android.Manifest; // Import Manifest
+import android.annotation.SuppressLint; // Import SuppressLint
+import android.content.pm.PackageManager;
+import android.location.Location; // Import Location
+import com.google.android.gms.location.FusedLocationProviderClient; // Import FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices; // Import LocationServices
+import com.google.android.gms.location.Priority; // Import Priority
+import com.google.android.gms.tasks.CancellationTokenSource; // Import CancellationTokenSource
+
 public class CreatePostActivity extends AppCompatActivity implements OnMapReadyCallback, SelectedImageAdapter.OnImageRemoveListener {
 
     private static final String TAG = "CreatePostActivity";
@@ -120,6 +130,8 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
     private TextView tvSelectedDates;
     private RecyclerView rvSelectedImages;
     private ProgressBar progressBarCreatePost;
+    private Button btnGetCurrentLocation; // Nút mới
+    private FusedLocationProviderClient fusedLocationClient;
 
     private GoogleMap gMap;
     private SupportMapFragment mapFragment;
@@ -161,6 +173,8 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
             finish();
             return;
         }
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         // Bind Views
         bindViews();
@@ -218,6 +232,7 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
         btnLocateAddress = findViewById(R.id.btnLocateAddress);
         btnAddImage = findViewById(R.id.btnAddImage);
         btnSavePost = findViewById(R.id.btnSavePost);
+        btnGetCurrentLocation = findViewById(R.id.btnGetCurrentLocation); // Bind nút mới
         rvSelectedImages = findViewById(R.id.rvSelectedImages);
         progressBarCreatePost = findViewById(R.id.progressBarCreatePost);
         rgPostDuration = findViewById(R.id.rgPostDuration);
@@ -454,6 +469,7 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
     }
 
     private void setupButtonClickListeners() {
+        btnGetCurrentLocation.setOnClickListener(v -> checkLocationPermissionAndGetLocation()); // Gọi hàm kiểm tra quyền
         btnLocateAddress.setOnClickListener(v -> geocodeAddress());
         btnAddImage.setOnClickListener(v -> openImagePicker());
         btnSavePost.setOnClickListener(v -> attemptSavePost());
@@ -550,9 +566,211 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
         }
     }
 
-    // --- Saving Logic ---
 
-    // --- Saving Logic ---
+    // --- Location Logic ---
+
+    private void checkLocationPermissionAndGetLocation() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            // Quyền đã được cấp, lấy vị trí
+            Log.d(TAG, "Location permission already granted. Getting location...");
+            getCurrentDeviceLocation();
+        } else if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
+            // Hiển thị giải thích tại sao cần quyền (ví dụ: dùng Dialog)
+            Log.d(TAG, "Showing rationale for location permission.");
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("Yêu cầu quyền vị trí")
+                    .setMessage("Ứng dụng cần truy cập vị trí của bạn để tự động điền thông tin địa chỉ.")
+                    .setPositiveButton("Đồng ý", (dialog, which) -> requestLocationPermission())
+                    .setNegativeButton("Hủy", (dialog, which) -> dialog.dismiss())
+                    .show();
+        } else {
+            // Yêu cầu quyền lần đầu hoặc khi user chọn "Don't ask again"
+            Log.d(TAG, "Requesting location permission.");
+            requestLocationPermission();
+        }
+    }
+
+    @SuppressLint("MissingPermission") // Cảnh báo sẽ được xử lý bởi check trước đó
+    private void getCurrentDeviceLocation() {
+        showLoading(true); // Hiển thị loading
+        btnGetCurrentLocation.setEnabled(false); // Vô hiệu hóa nút
+
+        // Sử dụng getCurrentLocation để lấy vị trí mới nhất
+        // Priority.PRIORITY_HIGH_ACCURACY: Độ chính xác cao (GPS), tốn pin hơn
+        // Priority.PRIORITY_BALANCED_POWER_ACCURACY: Cân bằng (Wi-Fi, Mạng di động)
+        // Priority.PRIORITY_LOW_POWER: Độ chính xác thấp, tiết kiệm pin
+        CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, cancellationTokenSource.getToken())
+                .addOnSuccessListener(this, location -> {
+                    if (location != null) {
+                        Log.d(TAG, "Location obtained: Lat=" + location.getLatitude() + ", Lng=" + location.getLongitude());
+                        // Có vị trí, tiến hành reverse geocode
+                        reverseGeocodeLocation(location);
+                    } else {
+                        // Không lấy được vị trí (có thể do location services bị tắt)
+                        Log.w(TAG, "Failed to get current location (location is null).");
+                        Toast.makeText(this, "Không thể lấy vị trí hiện tại. Vui lòng kiểm tra cài đặt vị trí.", Toast.LENGTH_LONG).show();
+                        showLoading(false); // Ẩn loading
+                        btnGetCurrentLocation.setEnabled(true); // Bật lại nút
+                    }
+                })
+                .addOnFailureListener(this, e -> {
+                    Log.e(TAG, "Error getting current location", e);
+                    Toast.makeText(this, "Lỗi khi lấy vị trí: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    showLoading(false); // Ẩn loading
+                    btnGetCurrentLocation.setEnabled(true); // Bật lại nút
+                });
+
+    }
+    private void reverseGeocodeLocation(Location location) {
+        if (!Geocoder.isPresent()) {
+            Log.e(TAG, "Geocoder backend service is not present.");
+            Toast.makeText(this, "Dịch vụ địa chỉ không khả dụng.", Toast.LENGTH_SHORT).show();
+            showLoading(false);
+            btnGetCurrentLocation.setEnabled(true);
+            return;
+        }
+
+        // Cập nhật biến tọa độ và bản đồ ngay lập tức
+        currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+        updateMapMarker(currentLatLng, "Vị trí hiện tại"); // Update map
+
+        // Geocoding có thể chậm, nên chạy trên background thread nếu cần
+        // Nhưng với 1 lần gọi, thử trên main thread trước kèm try-catch
+        try {
+            List<Address> addresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
+            showLoading(false); // Ẩn loading sau khi geocode xong
+            btnGetCurrentLocation.setEnabled(true); // Bật lại nút
+
+            if (addresses != null && !addresses.isEmpty()) {
+                Address address = addresses.get(0);
+                populateAddressFields(address); // Điền thông tin vào các ô
+                Log.i(TAG, "Reverse geocoding successful: " + address.getAddressLine(0));
+
+            } else {
+                Log.w(TAG, "No address found for the current location.");
+                Toast.makeText(this, "Không tìm thấy địa chỉ cho vị trí hiện tại.", Toast.LENGTH_SHORT).show();
+            }
+        } catch (IOException e) {
+            showLoading(false);
+            btnGetCurrentLocation.setEnabled(true);
+            Log.e(TAG, "Reverse geocoding failed", e);
+            if ("Service not Available".equalsIgnoreCase(e.getMessage())) {
+                Toast.makeText(this, "Dịch vụ địa chỉ không khả dụng, kiểm tra mạng.", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Lỗi khi lấy địa chỉ.", Toast.LENGTH_SHORT).show();
+            }
+        } catch (IllegalArgumentException e) {
+            // Handle invalid lat/lng if necessary (should not happen with fusedLocationClient)
+            showLoading(false);
+            btnGetCurrentLocation.setEnabled(true);
+            Log.e(TAG, "Invalid coordinates for reverse geocoding", e);
+            Toast.makeText(this, "Tọa độ không hợp lệ.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // --- Helper cho Loading ---
+    private void showLoading(boolean isLoading) {
+        if (progressBarCreatePost != null) { // ID ProgressBar của bạn
+            progressBarCreatePost.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+        }
+        // Có thể vô hiệu hóa các nút khác nếu cần
+        btnGetCurrentLocation.setEnabled(!isLoading);
+        btnLocateAddress.setEnabled(!isLoading);
+        btnSavePost.setEnabled(!isLoading); // Hoặc btnSavePost
+    }
+
+    private void updateMapMarker(LatLng latLng, String title) {
+        if(gMap == null || latLng == null) return;
+        if (currentMarker != null) {
+            currentMarker.remove();
+        }
+        currentMarker = gMap.addMarker(new MarkerOptions().position(latLng).title(title));
+        gMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16f)); // Zoom gần hơn
+    }
+
+    private void populateAddressFields(Address address) {
+        String provinceName = address.getAdminArea(); // Tỉnh/TP
+        String districtName = address.getSubAdminArea(); // Quận/Huyện
+        // Ward/Commune có thể là locality hoặc subLocality tùy dữ liệu trả về
+        String wardName = address.getSubLocality() != null ? address.getSubLocality() : address.getLocality();
+        String streetName = address.getThoroughfare(); // Tên đường
+        String streetNumber = address.getSubThoroughfare(); // Số nhà
+
+        Log.d(TAG, "Geocoded Address Components: Province=" + provinceName + ", District=" + districtName + ", Ward=" + wardName + ", Street=" + streetName + ", Number=" + streetNumber);
+
+        // 1. Tìm và chọn Tỉnh/Thành phố
+        Province matchedProvince = null;
+        if (provinceName != null) {
+            for (int i = 0; i < provinceArrayAdapter.getCount(); i++) {
+                // So sánh tên không phân biệt hoa thường và bỏ "Tỉnh ", "Thành phố "
+                String cleanedProvinceName = provinceArrayAdapter.getItem(i).getName()
+                        .replace("Tỉnh ", "").replace("Thành phố ", "");
+                String cleanedGeoProvince = provinceName.replace("Tỉnh ", "").replace("Thành phố ", "");
+                if (cleanedGeoProvince.equalsIgnoreCase(cleanedProvinceName)) {
+                    matchedProvince = provinceArrayAdapter.getItem(i);
+                    actProvince.setText(matchedProvince.toString(), false); // Set text và không filter
+                    selectedProvince = matchedProvince; // Cập nhật biến selected
+                    updateDistrictDropdown(matchedProvince.getIdProvince()); // Kích hoạt load Quận/Huyện
+                    Log.d(TAG, "Matched Province: " + matchedProvince.getName());
+                    break;
+                }
+            }
+            if (matchedProvince == null) Log.w(TAG, "Could not match Province: " + provinceName);
+        } else { Log.w(TAG, "Geocoder did not return Province name."); }
+
+
+        // 2. Tìm và chọn Quận/Huyện (Chờ sau khi updateDistrictDropdown chạy xong nếu nó bất đồng bộ)
+        // Do updateDistrictDropdown là đồng bộ, có thể tìm ngay trong filteredDistricts
+        District matchedDistrict = null;
+        if (districtName != null && !filteredDistricts.isEmpty()) { // Phải có filteredDistricts trước
+            for (District d : filteredDistricts) {
+                // So sánh tên không phân biệt hoa thường và bỏ "Quận ", "Huyện ", "Thị xã "
+                String cleanedDistrictName = d.getName()
+                        .replace("Quận ","").replace("Huyện ","").replace("Thị xã ","");
+                String cleanedGeoDistrict = districtName.replace("Quận ","").replace("Huyện ","").replace("Thị xã ","");
+                if (cleanedGeoDistrict.equalsIgnoreCase(cleanedDistrictName)) {
+                    matchedDistrict = d;
+                    actDistrict.setText(matchedDistrict.toString(), false);
+                    selectedDistrict = matchedDistrict;
+                    updateCommuneDropdown(matchedDistrict.getIdDistrict());
+                    Log.d(TAG, "Matched District: " + matchedDistrict.getName());
+                    break;
+                }
+            }
+            if (matchedDistrict == null) Log.w(TAG, "Could not match District: " + districtName);
+        } else {Log.w(TAG, "Geocoder did not return District name or filtered list is empty.");}
+
+        // 3. Tìm và chọn Phường/Xã
+        Commune matchedCommune = null;
+        if (wardName != null && !filteredCommunes.isEmpty()) {
+            for (Commune c : filteredCommunes) {
+                // So sánh tên không phân biệt hoa thường và bỏ "Phường ", "Xã ", "Thị trấn "
+                String cleanedCommuneName = c.getName()
+                        .replace("Phường ","").replace("Xã ","").replace("Thị trấn ","");
+                String cleanedGeoWard = wardName.replace("Phường ","").replace("Xã ","").replace("Thị trấn ","");
+                if (cleanedGeoWard.equalsIgnoreCase(cleanedCommuneName)) {
+                    matchedCommune = c;
+                    actCommune.setText(matchedCommune.toString(), false);
+                    selectedCommune = matchedCommune;
+                    Log.d(TAG, "Matched Commune: " + matchedCommune.getName());
+                    break;
+                }
+            }
+            if (matchedCommune == null) Log.w(TAG, "Could not match Commune: " + wardName);
+        } else {Log.w(TAG, "Geocoder did not return Ward/Commune name or filtered list is empty.");}
+
+
+        // 4. Điền địa chỉ chi tiết
+        String detailAddress = "";
+        if (streetNumber != null) detailAddress += streetNumber + " ";
+        if (streetName != null) detailAddress += streetName;
+        etAddressDetail.setText(detailAddress.trim());
+        Log.d(TAG, "Set Detailed Address: " + detailAddress.trim());
+
+    }
+
+        // --- Saving Logic ---
 
     private void attemptSavePost() {
         if (!validateInput()) {
