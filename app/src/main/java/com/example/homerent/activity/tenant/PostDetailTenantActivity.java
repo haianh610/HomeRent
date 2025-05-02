@@ -1,6 +1,11 @@
 package com.example.homerent.activity.tenant; // Đảm bảo đúng package
 
+import android.content.Context;
 import android.content.Intent;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -64,7 +69,7 @@ import com.google.android.material.button.MaterialButton; // Import MaterialButt
 import de.hdodenhof.circleimageview.CircleImageView;
 
 public class PostDetailTenantActivity extends AppCompatActivity
-        implements ImageSliderAdapter.OnItemClickListener, OnMapReadyCallback {
+        implements ImageSliderAdapter.OnItemClickListener, OnMapReadyCallback, SensorEventListener {
 
     private static final String TAG = "PostDetailTenantAct";
 
@@ -108,6 +113,14 @@ public class PostDetailTenantActivity extends AppCompatActivity
 
     private List<String> postImageUrls = new ArrayList<>(); // Để dùng trong listener
 
+    // --- Biến cho Sensor ---
+    private SensorManager sensorManager;
+    private Sensor accelerometer;
+    private long lastShakeTime = 0;
+    private static final int SHAKE_THRESHOLD_GRAVITY = 2; // Ngưỡng gia tốc (điều chỉnh nếu cần)
+    private static final int SHAKE_SLOP_TIME_MS = 500; // Thời gian tối thiểu giữa các lần lắc
+    private float lastX, lastY, lastZ;
+    private boolean isInitialized = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -143,6 +156,18 @@ public class PostDetailTenantActivity extends AppCompatActivity
         setupMap(); // Setup map riêng
         loadPostDetails();
         setupButtonClickListeners();
+
+        // --- Khởi tạo SensorManager ---
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        if (sensorManager != null) {
+            accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+            if (accelerometer == null) {
+                Log.w(TAG, "Device does not have an accelerometer sensor.");
+                // Có thể vô hiệu hóa tính năng lắc nếu muốn
+            }
+        } else {
+            Log.e(TAG, "Could not get SensorManager service.");
+        }
 
         if (currentUser != null) {
             checkIfPostIsSaved();
@@ -229,6 +254,88 @@ public class PostDetailTenantActivity extends AppCompatActivity
         detailMap.clear(); // Xóa marker cũ (nếu có)
         detailMap.addMarker(new MarkerOptions().position(latLng).title(title));
         detailMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f)); // Zoom vừa phải
+    }
+
+    // --- Đăng ký và Hủy đăng ký Listener ---
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Đăng ký listener khi activity resume
+        if (sensorManager != null && accelerometer != null) {
+            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI); // Hoặc SENSOR_DELAY_NORMAL
+            Log.d(TAG, "Accelerometer listener registered.");
+            isInitialized = false; // Reset lại trạng thái init khi resume
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Hủy đăng ký listener khi activity pause để tiết kiệm pin
+        if (sensorManager != null) {
+            sensorManager.unregisterListener(this);
+            Log.d(TAG, "Accelerometer listener unregistered.");
+        }
+    }
+
+    // --- Implement các phương thức của SensorEventListener ---
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() != Sensor.TYPE_ACCELEROMETER) {
+            return;
+        }
+
+        long currentTime = System.currentTimeMillis();
+        float x = event.values[0];
+        float y = event.values[1];
+        float z = event.values[2];
+
+        if (!isInitialized) {
+            // Lưu giá trị ban đầu
+            lastX = x;
+            lastY = y;
+            lastZ = z;
+            isInitialized = true;
+            return;
+        }
+
+        // Tính gia tốc thay đổi (bỏ qua gravity)
+        float deltaX = x - lastX;
+        float deltaY = y - lastY;
+        float deltaZ = z - lastZ;
+
+        lastX = x;
+        lastY = y;
+        lastZ = z;
+
+        // Tính tốc độ di chuyển (magnitude)
+        // Có nhiều công thức, cách đơn giản là dùng tổng bình phương
+        double acceleration = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+
+        // --- Logic phát hiện lắc ---
+        if (acceleration > SHAKE_THRESHOLD_GRAVITY) {
+            long now = System.currentTimeMillis();
+            // Chỉ xử lý nếu đã qua thời gian cooldown
+            if (now - lastShakeTime > SHAKE_SLOP_TIME_MS) {
+                lastShakeTime = now;
+                Log.i(TAG, "Shake detected! Acceleration: " + acceleration);
+
+                // Kiểm tra xem có tọa độ để mở map không
+                if (postLatLng != null) {
+                    Toast.makeText(this, "Mở bản đồ lớn...", Toast.LENGTH_SHORT).show();
+                    openFullScreenMap(); // Gọi hàm mở bản đồ toàn màn hình
+                } else {
+                    Log.w(TAG, "Shake detected but no location available to open map.");
+                    // Không cần thông báo lỗi cho người dùng về việc lắc khi không có map
+                }
+            }
+        }
+        // ---------------------------
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // Thường không cần xử lý cho accelerometer shake detection
     }
 
     // onMapReady giữ nguyên như PostDetailLandlordActivity
