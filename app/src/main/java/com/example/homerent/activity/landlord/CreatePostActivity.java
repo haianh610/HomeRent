@@ -600,7 +600,7 @@ public class CreatePostActivity extends AppCompatActivity implements OnMapReadyC
         // Priority.PRIORITY_BALANCED_POWER_ACCURACY: Cân bằng (Wi-Fi, Mạng di động)
         // Priority.PRIORITY_LOW_POWER: Độ chính xác thấp, tiết kiệm pin
         CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
-        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, cancellationTokenSource.getToken())
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cancellationTokenSource.getToken())
                 .addOnSuccessListener(this, location -> {
                     if (location != null) {
                         Log.d(TAG, "Location obtained: Lat=" + location.getLatitude() + ", Lng=" + location.getLongitude());
