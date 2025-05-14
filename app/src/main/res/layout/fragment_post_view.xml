@@ -1,22 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sử dụng FrameLayout hoặc RelativeLayout thay vì CoordinatorLayout ở đây -->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".fragment.tenant.PostViewFragment">
 
+    <!-- AppBarLayout to hold the SearchBar and Filters -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayoutPostView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?android:attr/colorBackground"> <!-- Or transparent/specific color -->
+
+        <!-- M3 SearchBar -->
+        <com.google.android.material.search.SearchBar
+            android:id="@+id/searchBarPostView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="4dp"
+            android:hint="Tìm Quận/Huyện, Phường/Xã..."
+            app:layout_scrollFlags="scroll|enterAlways|snap" /> <!-- Scroll flags for hide/show -->
+
+        <!-- Horizontal ScrollView for Chips -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:paddingBottom="8dp"
+            android:clipToPadding="false"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            app:layout_scrollFlags="scroll|enterAlways" > <!-- Optional: Also hide/show with scroll -->
+
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupFilters"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:singleLine="true">
+
+                <!-- Province Chip -->
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipProvince"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tỉnh/TP: Tất cả"
+                    app:chipIcon="@drawable/ic_location_pin" /> <!-- Add location icon -->
+
+                <!-- Price Range Chip -->
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipPriceRange"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Giá: Bất kỳ"
+                    app:chipIcon="@drawable/ic_price" /> <!-- Add price icon -->
+
+                <!-- Add more filter chips here if needed -->
+
+            </com.google.android.material.chip.ChipGroup>
+        </HorizontalScrollView>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewPostView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipToPadding="false"
         android:paddingStart="8dp"
         android:paddingEnd="8dp"
-        android:paddingBottom="?attr/actionBarSize"
-        android:clipToPadding="false"
+        android:paddingBottom="80dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        tools:itemCount="4"
         tools:listitem="@layout/item_post_view" />
 
+    <!-- No Posts TextView (Place it inside CoordinatorLayout, outside AppBar) -->
     <TextView
         android:id="@+id/textViewNoPostsView"
         android:layout_width="wrap_content"
@@ -26,6 +90,7 @@
         android:textSize="18sp"
         android:visibility="gone" />
 
+    <!-- ProgressBar (Place it inside CoordinatorLayout, outside AppBar) -->
     <ProgressBar
         android:id="@+id/progressBarPostView"
         style="?android:attr/progressBarStyle"
@@ -34,4 +99,25 @@
         android:layout_gravity="center"
         android:visibility="gone" />
 
-</FrameLayout>
+    <!-- M3 SearchView (Anchored to SearchBar INSIDE the Fragment's layout) -->
+    <!-- M3 SearchView -->
+    <com.google.android.material.search.SearchView
+        android:id="@+id/searchViewPostView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:hint="Nhập Quận/Huyện, Phường/Xã, địa chỉ..."
+        app:layout_anchor="@id/searchBarPostView">
+
+        <!-- RecyclerView for Autocomplete Suggestions -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvAutocompleteSuggestions"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingTop="8dp"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:listitem="@layout/item_autocomplete_suggestion"/>
+
+    </com.google.android.material.search.SearchView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

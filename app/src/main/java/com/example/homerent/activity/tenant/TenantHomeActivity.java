@@ -5,213 +5,163 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Toast;
 // Import Toolbar
+import androidx.activity.EdgeToEdge;
 import androidx.appcompat.widget.Toolbar;
 // Import SearchView
-import androidx.appcompat.widget.SearchView;
+import com.google.android.material.search.SearchView; // Import M3 SearchView
+// Import SearchBar
+import com.google.android.material.search.SearchBar; // Import M3 SearchBar
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentContainerView;
 import androidx.fragment.app.FragmentManager; // Thêm import này
 import androidx.fragment.app.FragmentTransaction; // Thêm import này
 
+import com.example.homerent.AddressUtils;
 import com.example.homerent.R;
 import com.example.homerent.fragment.tenant.PostViewFragment;
 import com.example.homerent.fragment.tenant.SavedPostsFragment; // Giả sử bạn sẽ tạo Fragment này
 import com.example.homerent.fragment.tenant.TenantAccountFragment; // Giả sử bạn sẽ tạo Fragment này
+import com.example.homerent.model.Province;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.search.SearchBar;
+import com.google.android.material.textfield.TextInputLayout;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 public class TenantHomeActivity extends AppCompatActivity {
 
     private BottomNavigationView bottomNavigationView;
-    private Toolbar toolbar;
-    private String currentFragmentTag = ""; // Để biết Fragment nào đang hiển thị
+    private FragmentContainerView fragmentContainer; // Thêm biến cho container
+    private String currentFragmentTag = "";
 
-    // Interface để Fragment lắng nghe sự kiện tìm kiếm
-    public interface SearchableFragment {
-        void onSearchQuery(String query);
-    }
-
-    @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        EdgeToEdge.enable(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_tenant_home);
 
-        toolbar = findViewById(R.id.toolbarTenantHome);
-        setSupportActionBar(toolbar); // Đặt Toolbar làm ActionBar
-
         bottomNavigationView = findViewById(R.id.bottomNavigationViewTenant);
+        fragmentContainer = findViewById(R.id.fragmentContainerTenant); // Đảm bảo ánh xạ
+
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.layout_tenant_home), (v, windowInsets) -> {
+            Insets systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            Insets imeInsets = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
+
+            // Áp padding top cho root layout
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0);
+
+//            // Điều chỉnh margin bottom cho BottomNavigationView
+//            ViewGroup.MarginLayoutParams navParams = (ViewGroup.MarginLayoutParams) bottomNavigationView.getLayoutParams();
+//            // Chỉ đặt margin khi bàn phím ẩn
+//            navParams.bottomMargin = (imeInsets.bottom > 0) ? 0 : systemBars.bottom;
+//            bottomNavigationView.setLayoutParams(navParams);
+
+            return windowInsets; // Trả về gốc
+        });
 
         if (savedInstanceState == null) {
-            loadFragment(PostViewFragment.newInstance(), PostViewFragment.TAG); // Load fragment mặc định với tag
-            toolbar.setTitle("Trang chủ"); // Set title ban đầu
+            loadFragment(PostViewFragment.newInstance(), PostViewFragment.TAG);
         } else {
-            // Khôi phục fragment nếu activity bị destroy và recreate
+            // Restore logic - simpler now, just restore tag
             currentFragmentTag = savedInstanceState.getString("CURRENT_FRAGMENT_TAG", PostViewFragment.TAG);
-            Fragment restoredFragment = getSupportFragmentManager().findFragmentByTag(currentFragmentTag);
-            if (restoredFragment != null) {
-                // Nếu fragment đã tồn tại, chỉ cần cập nhật title
-                updateToolbarTitle(currentFragmentTag);
-            } else {
-                // Nếu không tìm thấy, load lại fragment mặc định
-                loadFragment(PostViewFragment.newInstance(), PostViewFragment.TAG);
-                toolbar.setTitle("Trang chủ");
-            }
+            // FragmentManager handles restoring the actual fragment instance if possible
         }
-
 
         bottomNavigationView.setOnItemSelectedListener(item -> {
             Fragment selectedFragment = null;
             String selectedTag = "";
             int itemId = item.getItemId();
+            boolean shouldLoad = false; // Flag to check if we need to perform transaction
 
             if (itemId == R.id.navigation_home) {
                 if (!currentFragmentTag.equals(PostViewFragment.TAG)) {
-                    selectedFragment = PostViewFragment.newInstance();
                     selectedTag = PostViewFragment.TAG;
+                    shouldLoad = true;
                 }
             } else if (itemId == R.id.navigation_saved_posts) {
                 if (!currentFragmentTag.equals(SavedPostsFragment.TAG)) {
-                    selectedFragment = SavedPostsFragment.newInstance();
                     selectedTag = SavedPostsFragment.TAG;
+                    shouldLoad = true;
                 }
             } else if (itemId == R.id.navigation_account) {
                 if (!currentFragmentTag.equals(TenantAccountFragment.TAG)) {
-                    // --- Sửa chỗ này ---
-                    selectedFragment = TenantAccountFragment.newInstance(); // Tạo fragment tài khoản
-                    selectedTag = TenantAccountFragment.TAG;
-                    // --- Hết sửa ---
+                    selectedTag = TenantAccountFragment.TAG; // Dùng TAG từ TenantAccountFragment
+                    shouldLoad = true;
                 }
             }
 
-            // --- Phần code xử lý transaction giữ nguyên như trước ---
-            if (selectedFragment != null && !selectedTag.isEmpty()) {
+            if (shouldLoad) {
                 Fragment existingFragment = getSupportFragmentManager().findFragmentByTag(selectedTag);
-                FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
-
-                Fragment currentFrag = getSupportFragmentManager().findFragmentByTag(currentFragmentTag);
-                if (currentFrag != null && currentFrag.isAdded()) { // Kiểm tra isAdded
-                    transaction.hide(currentFrag);
-                }
-
                 if (existingFragment == null) {
-                    transaction.add(R.id.fragmentContainerTenant, selectedFragment, selectedTag);
+                    // Create new instance based on tag
+                    if (PostViewFragment.TAG.equals(selectedTag)) selectedFragment = PostViewFragment.newInstance();
+                    else if (SavedPostsFragment.TAG.equals(selectedTag)) selectedFragment = SavedPostsFragment.newInstance();
+                    else if (TenantAccountFragment.TAG.equals(selectedTag)) selectedFragment = TenantAccountFragment.newInstance(); // Gọi newInstance()
                 } else {
-                    transaction.show(existingFragment);
+                    selectedFragment = existingFragment; // Use existing if found
                 }
-                // Sử dụng commitAllowingStateLoss() nếu gặp lỗi IllegalStateException khi commit sau onSaveInstanceState
-                // transaction.commit();
-                transaction.commitAllowingStateLoss();
 
-                currentFragmentTag = selectedTag;
-                updateToolbarTitle(currentFragmentTag);
-                return true;
+                if (selectedFragment != null) {
+                    loadFragment(selectedFragment, selectedTag);
+                    return true;
+                }
             }
-            return false;
+            return false; // Return false if the same item is tapped again
         });
     }
 
+    // Add this public getter method
+    public BottomNavigationView getBottomNavigationView() {
+        return bottomNavigationView;
+    }
+
+    // Modified loadFragment to handle hide/show/add correctly
     private void loadFragment(Fragment fragment, String tag) {
-        // Kiểm tra nếu fragment đã tồn tại thì không load lại
-        if (getSupportFragmentManager().findFragmentByTag(tag) != null) {
-            getSupportFragmentManager().beginTransaction()
-                    .show(getSupportFragmentManager().findFragmentByTag(tag))
-                    .commit();
-        } else {
-            getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragmentContainerTenant, fragment, tag)
-                    .commit();
-        }
-        // Ẩn các fragment khác (nếu có)
-        hideOtherFragments(tag);
-        currentFragmentTag = tag; // Cập nhật tag của fragment hiện tại
-    }
-
-    // Hàm ẩn các fragment không phải là fragment đang được hiển thị
-    private void hideOtherFragments(String visibleTag) {
         FragmentManager fm = getSupportFragmentManager();
-        for (Fragment frag : fm.getFragments()) {
-            if (frag != null && !frag.getTag().equals(visibleTag)) {
-                fm.beginTransaction().hide(frag).commit();
-            }
-        }
-    }
+        FragmentTransaction transaction = fm.beginTransaction();
 
-    // Cập nhật title toolbar dựa trên tag
-    public void updateToolbarTitle(String tag) {
-        if (PostViewFragment.TAG.equals(tag)) {
-            toolbar.setTitle("Trang chủ");
-        } else if (SavedPostsFragment.TAG.equals(tag)) {
-            toolbar.setTitle("Tin đã lưu");
-        } else if (TenantAccountFragment.TAG.equals(tag)) {
-            toolbar.setTitle("Tài khoản"); // Đảm bảo có dòng này
-        } else {
-            toolbar.setTitle(getString(R.string.app_name)); // Title mặc định
+        // Hide the current fragment if it exists and is added
+        Fragment currentFrag = fm.findFragmentByTag(currentFragmentTag);
+        if (currentFrag != null && currentFrag.isAdded()) {
+            transaction.hide(currentFrag);
         }
+
+        // Check if the target fragment already exists
+        Fragment targetFragment = fm.findFragmentByTag(tag);
+        if (targetFragment == null) {
+            // Add the fragment if it doesn't exist
+            transaction.add(R.id.fragmentContainerTenant, fragment, tag);
+            Log.d("TenantHome", "Adding fragment with tag: " + tag);
+        } else {
+            // Show the fragment if it exists
+            transaction.show(targetFragment);
+            Log.d("TenantHome", "Showing fragment with tag: " + tag);
+        }
+
+        transaction.setReorderingAllowed(true); // Best practice
+        transaction.commitAllowingStateLoss(); // Use if needed
+        currentFragmentTag = tag; // Update the current tag
     }
 
 
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        // Lưu tag của fragment hiện tại
         outState.putString("CURRENT_FRAGMENT_TAG", currentFragmentTag);
     }
 
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.tenant_home_menu, menu);
-        MenuItem searchItem = menu.findItem(R.id.action_search);
-        SearchView searchView = (SearchView) searchItem.getActionView();
-
-        if (searchView != null) {
-            searchView.setQueryHint("Tìm kiếm tin đăng...");
-            searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-                @Override
-                public boolean onQueryTextSubmit(String query) {
-                    // Xử lý khi người dùng nhấn enter/search trên bàn phím
-                    performSearch(query);
-                    searchView.clearFocus(); // Ẩn bàn phím
-                    return true;
-                }
-
-                @Override
-                public boolean onQueryTextChange(String newText) {
-                    // Xử lý khi nội dung text thay đổi (tìm kiếm real-time)
-                    performSearch(newText);
-                    return true;
-                }
-            });
-        } else {
-            Log.e("TenantHomeActivity", "SearchView is null!");
-        }
-
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_search) {
-            // Đã xử lý bằng SearchView, không cần làm gì thêm ở đây
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
-    // Hàm gửi query tìm kiếm đến Fragment hiện tại
-    private void performSearch(String query) {
-        Fragment currentFragment = getSupportFragmentManager().findFragmentByTag(currentFragmentTag);
-        // Chỉ gửi query đến fragment nếu nó implement SearchableFragment
-        if (currentFragment instanceof SearchableFragment) {
-            ((SearchableFragment) currentFragment).onSearchQuery(query);
-        } else {
-            // Nếu fragment hiện tại không tìm kiếm được (vd: Account), có thể thông báo
-            // Toast.makeText(this, "Tìm kiếm không áp dụng cho màn hình này", Toast.LENGTH_SHORT).show();
-        }
-    }
 }

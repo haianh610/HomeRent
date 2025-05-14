@@ -1,105 +1,73 @@
 package com.example.homerent.fragment.landlord;
 
-import android.app.AlertDialog;
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import com.example.homerent.MainActivity;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-
-import com.bumptech.glide.Glide;
-import com.example.homerent.ChangeAccountActivity;
-import com.example.homerent.ChangePasswordActivity;
-import com.example.homerent.LoginActivity;
 
 import com.example.homerent.R;
+import com.example.homerent.activity.tenant.TenantHomeActivity; // Import TenantHome
 import com.example.homerent.databinding.FragmentAccountBinding;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
+import com.example.homerent.fragment.BaseAccountFragment; // Import Base Fragment
+import com.example.homerent.model.User;
+import com.google.android.material.button.MaterialButton;
 
-public class FragmentAccount extends Fragment {
-    private static final String TAG = "FragmentAccount";
-    private FirebaseAuth auth;
-    FragmentAccountBinding binding;
 
-    @Nullable
+public class FragmentAccount extends BaseAccountFragment<FragmentAccountBinding> {
+
+    public static final String TAG = "Tài khoản";
+    private static final String LOG_TAG = "LandlordAccountFragment";
+
+    public static FragmentAccount newInstance() { return new FragmentAccount(); }
+
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater,
-                             @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
-        binding = FragmentAccountBinding.inflate(inflater, container, false);
-
-        auth = FirebaseAuth.getInstance();
-
-        binding.tvTtTK.setOnClickListener(v -> {
-            Intent intent = new Intent(getActivity(), ChangeAccountActivity.class);
-            startActivity(intent);
-        });
-        binding.tvDoiMk.setOnClickListener(v -> {
-            Intent intent = new Intent(getActivity(), ChangePasswordActivity.class);
-            startActivity(intent);
-        });
-
-        binding.tvDangXuat.setOnClickListener(v -> {
-            new AlertDialog.Builder(requireContext())
-                    .setTitle("Xác nhận đăng xuất")
-                    .setMessage("Bạn có chắc chắn muốn đăng xuất không?")
-                    .setPositiveButton("Đăng xuất", (dialog, which) -> {
-                        auth.signOut();
-                        Intent intent = new Intent(getActivity(), LoginActivity.class);
-                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK); // Xoá backstack
-                        startActivity(intent);
-                    })
-                    .setNegativeButton("Hủy", (dialog, which) -> dialog.dismiss())
-                    .show();
-        });
-
-        showUserInformation();
-
-        return binding.getRoot();
-    }
-
-    public void showUserInformation() {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) return;
-
-        // Lấy thông tin cơ bản
-        String email = user.getEmail();
-        Uri photoUrl = user.getPhotoUrl();
-        String uid = user.getUid();
-
-        // Dùng hàm helper từ MainActivity để lấy tên người dùng
-        MainActivity.getUserName(uid, new MainActivity.UserNameCallback() {
-            @Override
-            public void onUserNameLoaded(String name) {
-                if (isAdded() && getActivity() != null) { // Kiểm tra fragment còn attached
-                    binding.tvName.setText(name);
-                    Log.d(TAG, "Tên người dùng đã được tải: " + name);
-                }
-            }
-        });
-
-        binding.tvEmail.setText(email != null ? email : "Không có email");
-
-        if (photoUrl != null) {
-            Glide.with(this)
-                    .load(photoUrl)
-                    .placeholder(R.drawable.ic_ava)
-                    .into(binding.imgAvatar);
-        } else {
-            binding.imgAvatar.setImageResource(R.drawable.ic_ava);
-        }
+    protected FragmentAccountBinding inflateBinding(@NonNull LayoutInflater inflater, @Nullable ViewGroup container) {
+        return FragmentAccountBinding.inflate(inflater, container, false);
     }
 
     @Override
-    public void onResume() {
-        super.onResume();
-        showUserInformation();
+    protected String getFragmentTag() { return TAG; }
+
+    @Override
+    protected String getLogTag() { return LOG_TAG; }
+
+    // Cung cấp Views từ Binding (giữ nguyên)
+    @Override protected ImageView getAvatarImageView() { return binding.imgAvatar; }
+    @Override protected TextView getNameTextView() { return binding.tvName; }
+    @Override protected TextView getEmailTextView() { return binding.tvEmail; }
+    @Override protected LinearLayout getChangeAccountLayout() { return binding.llChangeAccount; }
+    @Override protected LinearLayout getChangePasswordLayout() { return binding.llChangePassword; }
+    @Override protected LinearLayout getLogoutLayout() { return binding.llLogout; }
+    @Override protected MaterialButton getSwitchModeButton() { return binding.btnSwitchMode; }
+
+
+    // Hành động nút chuyển đổi cho Chủ nhà - LUÔN CHUYỂN SANG TENANT (Giữ nguyên)
+    @Override
+    protected void setupSwitchModeButton(MaterialButton switchButton) {
+        switchButton.setText("Chuyển sang tìm tin");
+        switchButton.setIconResource(R.drawable.ic_switch_account);
+        switchButton.setVisibility(View.VISIBLE); // Đảm bảo nút hiện
+
+        switchButton.setOnClickListener(v -> {
+            // Gọi hàm của lớp cha để cập nhật role thành "tenant" và chuyển activity
+            updateUserRoleAndSwitch("tenant");
+        });
     }
+    // Cung cấp ProgressBar (nếu có trong layout binding) hoặc return null
+    @Override
+    protected ProgressBar getSwitchModeProgressBar() {
+        // Giả sử không có ProgressBar riêng cho nút này trong layout FragmentAccountBinding
+        return null;
+        // Nếu có, ví dụ: return binding.progressBarSwitch;
+    }
+
 }

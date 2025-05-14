@@ -1,6 +1,11 @@
 package com.example.homerent.activity.tenant; // Đảm bảo đúng package
 
+import android.content.Context;
 import android.content.Intent;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -35,6 +40,7 @@ import com.google.firebase.firestore.SetOptions; // Để lưu post đã save
 
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -42,9 +48,28 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
+import androidx.activity.EdgeToEdge;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import com.example.homerent.FullScreenImageViewerActivity; // Import FullScreenImageViewerActivity
+import com.example.homerent.FullScreenMapActivity; // Import FullScreenMapActivity
+import com.google.android.material.dialog.MaterialAlertDialogBuilder; // Import M3 Dialog
+import android.content.DialogInterface;
+import android.content.pm.PackageManager; // Import PackageManager
+
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.material.button.MaterialButton; // Import MaterialButton
+
 import de.hdodenhof.circleimageview.CircleImageView;
 
-public class PostDetailTenantActivity extends AppCompatActivity {
+public class PostDetailTenantActivity extends AppCompatActivity
+        implements ImageSliderAdapter.OnItemClickListener, OnMapReadyCallback, SensorEventListener {
 
     private static final String TAG = "PostDetailTenantAct";
 
@@ -54,18 +79,22 @@ public class PostDetailTenantActivity extends AppCompatActivity {
     private TextView tvPostTitleDetail;
     private TextView tvPostPriceDetail;
     private TextView tvPostAreaDetail;
-    private TextView tvFullAddress; // Thay cho view count card landlord
+    private TextView tvFullAddress; // TextView địa chỉ đầy đủ
     private TextView tvPostDescriptionDetail;
     private TextView tvPriceValue;
     private TextView tvAreaValue;
     private TextView tvBedroomsValue;
-    private TextView tvFloorsValue; // Thêm nếu có
+    private TextView tvFloorsValue;
     private TextView tvPostingDateDetail;
     private CircleImageView ivLandlordAvatar;
     private TextView tvLandlordName;
-    private Button btnCallLandlord;
+    private MaterialButton btnContactOptions; // Đổi thành MaterialButton
     private ProgressBar progressBarDetail;
     private NestedScrollView scrollViewContent;
+    private Button btnViewFullMap; // Nút xem map lớn
+    private SupportMapFragment detailMapFragment;
+    private GoogleMap detailMap;
+    private LatLng postLatLng;
 
     private FirebaseFirestore db;
     private FirebaseAuth mAuth;
@@ -82,10 +111,32 @@ public class PostDetailTenantActivity extends AppCompatActivity {
     private boolean isSaved = false; // Trạng thái bài đăng đã được lưu chưa
     private MenuItem saveMenuItem; // Để thay đổi icon lưu
 
+    private List<String> postImageUrls = new ArrayList<>(); // Để dùng trong listener
+
+    // --- Biến cho Sensor ---
+    private SensorManager sensorManager;
+    private Sensor accelerometer;
+    private long lastShakeTime = 0;
+    private static final int SHAKE_THRESHOLD_GRAVITY = 2; // Ngưỡng gia tốc (điều chỉnh nếu cần)
+    private static final int SHAKE_SLOP_TIME_MS = 500; // Thời gian tối thiểu giữa các lần lắc
+    private float lastX, lastY, lastZ;
+    private boolean isInitialized = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // --- EdgeToEdge ---
+        EdgeToEdge.enable(this);
+        //--------------------
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_post_detail_tenant);
+        setContentView(R.layout.activity_post_detail_tenant); // Đảm bảo đúng layout
+        // --- WindowInsets Listener ---
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.layout_post_detail_tenant), (v, insets) -> { // ID root layout
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(v.getPaddingLeft(), systemBars.top, v.getPaddingRight(), v.getPaddingBottom()); // Apply padding for status/nav bars
+            // If using CoordinatorLayout, the button might adjust automatically with insetEdge="bottom"
+            // Otherwise, adjust bottom margin/padding for btnContactOptions here if needed
+            return insets;
+        });
 
         db = FirebaseFirestore.getInstance();
         mAuth = FirebaseAuth.getInstance();
@@ -102,8 +153,21 @@ public class PostDetailTenantActivity extends AppCompatActivity {
 
         bindViews();
         setupToolbar();
+        setupMap(); // Setup map riêng
         loadPostDetails();
         setupButtonClickListeners();
+
+        // --- Khởi tạo SensorManager ---
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        if (sensorManager != null) {
+            accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+            if (accelerometer == null) {
+                Log.w(TAG, "Device does not have an accelerometer sensor.");
+                // Có thể vô hiệu hóa tính năng lắc nếu muốn
+            }
+        } else {
+            Log.e(TAG, "Could not get SensorManager service.");
+        }
 
         if (currentUser != null) {
             checkIfPostIsSaved();
@@ -117,19 +181,19 @@ public class PostDetailTenantActivity extends AppCompatActivity {
         tvPostTitleDetail = findViewById(R.id.tvPostTitleDetailTenant);
         tvPostPriceDetail = findViewById(R.id.tvPostPriceDetailTenant);
         tvPostAreaDetail = findViewById(R.id.tvPostAreaDetailTenant);
-        tvFullAddress = findViewById(R.id.tvFullAddressTenant); // TextView mới cho địa chỉ
+        tvFullAddress = findViewById(R.id.tvFullAddressTenant);
         tvPostDescriptionDetail = findViewById(R.id.tvPostDescriptionDetailTenant);
         tvPriceValue = findViewById(R.id.tvPriceValueTenant);
         tvAreaValue = findViewById(R.id.tvAreaValueTenant);
         tvBedroomsValue = findViewById(R.id.tvBedroomsValueTenant);
-        tvFloorsValue = findViewById(R.id.tvFloorsValueTenant); // Bind nếu có
+        tvFloorsValue = findViewById(R.id.tvFloorsValueTenant);
         tvPostingDateDetail = findViewById(R.id.tvPostingDateDetailTenant);
         ivLandlordAvatar = findViewById(R.id.ivLandlordAvatarTenant);
         tvLandlordName = findViewById(R.id.tvLandlordNameTenant);
-        btnCallLandlord = findViewById(R.id.btnCallLandlord);
+        btnContactOptions = findViewById(R.id.btnContactOptions); // ID nút liên hệ mới
         progressBarDetail = findViewById(R.id.progressBarDetailTenant);
         scrollViewContent = findViewById(R.id.tenantDetailScrollView);
-        // Không cần bind btnEditPostBottom
+        btnViewFullMap = findViewById(R.id.btnViewFullMapTenant); // ID nút xem map mới
     }
 
     private void setupToolbar() {
@@ -137,33 +201,161 @@ public class PostDetailTenantActivity extends AppCompatActivity {
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setDisplayShowHomeEnabled(true);
-            getSupportActionBar().setTitle("Chi tiết tin"); // Set title nếu muốn
+            getSupportActionBar().setTitle("Chi tiết tin");
         }
-        // Listener cho nút back trên toolbar
         toolbar.setNavigationOnClickListener(v -> onBackPressed());
     }
 
+    private void setupMap() {
+        detailMapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.mapDetailFragmentContainerTenant); // ID map mới
+        if (detailMapFragment != null) {
+            detailMapFragment.getMapAsync(this);
+        } else {
+            Log.e(TAG, "Map fragment not found!");
+            if(btnViewFullMap != null) btnViewFullMap.setVisibility(View.GONE); // Ẩn nút nếu lỗi map
+        }
+    }
+
     private void setupButtonClickListeners() {
-        btnCallLandlord.setOnClickListener(v -> {
+        // Nút xem bản đồ lớn
+        btnViewFullMap.setOnClickListener(v -> openFullScreenMap());
+
+        // Nút liên hệ
+        btnContactOptions.setOnClickListener(v -> {
             if (landlordInfo != null && landlordInfo.getPhoneNumber() != null && !landlordInfo.getPhoneNumber().isEmpty()) {
-                Intent intent = new Intent(Intent.ACTION_DIAL); // Mở màn hình gọi điện
-                intent.setData(Uri.parse("tel:" + landlordInfo.getPhoneNumber()));
-                try {
-                    startActivity(intent);
-                } catch (android.content.ActivityNotFoundException ex) {
-                    Toast.makeText(PostDetailTenantActivity.this, "Không thể mở ứng dụng gọi điện.", Toast.LENGTH_SHORT).show();
-                }
+                showContactOptionsDialog(landlordInfo.getPhoneNumber());
             } else {
-                Toast.makeText(this, "Không có thông tin số điện thoại.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Không có thông tin liên hệ của chủ nhà.", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void openFullScreenMap() {
+        if (postLatLng != null && currentPost != null) {
+            Intent intent = new Intent(this, FullScreenMapActivity.class);
+            intent.putExtra(FullScreenMapActivity.EXTRA_LATITUDE, postLatLng.latitude);
+            intent.putExtra(FullScreenMapActivity.EXTRA_LONGITUDE, postLatLng.longitude);
+            // Tạo địa chỉ đầy đủ để hiển thị trên map và tìm kiếm
+            String fullAddress = (currentPost.getAddress() != null ? currentPost.getAddress() + ", " : "")
+                    + currentPost.getWard() + ", "
+                    + currentPost.getDistrict() + ", "
+                    + currentPost.getCity();
+            intent.putExtra(FullScreenMapActivity.EXTRA_ADDRESS, fullAddress.replaceAll("^, ", "").trim());
+            startActivity(intent);
+        } else {
+            Toast.makeText(this, "Không có thông tin vị trí để hiển thị.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void updateDetailMapMarker(LatLng latLng, String title) {
+        if (detailMap == null || latLng == null) return;
+        Log.d(TAG, "Updating detail map marker at: " + latLng.latitude + "," + latLng.longitude);
+        detailMap.clear(); // Xóa marker cũ (nếu có)
+        detailMap.addMarker(new MarkerOptions().position(latLng).title(title));
+        detailMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f)); // Zoom vừa phải
+    }
+
+    // --- Đăng ký và Hủy đăng ký Listener ---
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Đăng ký listener khi activity resume
+        if (sensorManager != null && accelerometer != null) {
+            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI); // Hoặc SENSOR_DELAY_NORMAL
+            Log.d(TAG, "Accelerometer listener registered.");
+            isInitialized = false; // Reset lại trạng thái init khi resume
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Hủy đăng ký listener khi activity pause để tiết kiệm pin
+        if (sensorManager != null) {
+            sensorManager.unregisterListener(this);
+            Log.d(TAG, "Accelerometer listener unregistered.");
+        }
+    }
+
+    // --- Implement các phương thức của SensorEventListener ---
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() != Sensor.TYPE_ACCELEROMETER) {
+            return;
+        }
+
+        long currentTime = System.currentTimeMillis();
+        float x = event.values[0];
+        float y = event.values[1];
+        float z = event.values[2];
+
+        if (!isInitialized) {
+            // Lưu giá trị ban đầu
+            lastX = x;
+            lastY = y;
+            lastZ = z;
+            isInitialized = true;
+            return;
+        }
+
+        // Tính gia tốc thay đổi (bỏ qua gravity)
+        float deltaX = x - lastX;
+        float deltaY = y - lastY;
+        float deltaZ = z - lastZ;
+
+        lastX = x;
+        lastY = y;
+        lastZ = z;
+
+        // Tính tốc độ di chuyển (magnitude)
+        // Có nhiều công thức, cách đơn giản là dùng tổng bình phương
+        double acceleration = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+
+        // --- Logic phát hiện lắc ---
+        if (acceleration > SHAKE_THRESHOLD_GRAVITY) {
+            long now = System.currentTimeMillis();
+            // Chỉ xử lý nếu đã qua thời gian cooldown
+            if (now - lastShakeTime > SHAKE_SLOP_TIME_MS) {
+                lastShakeTime = now;
+                Log.i(TAG, "Shake detected! Acceleration: " + acceleration);
+
+                // Kiểm tra xem có tọa độ để mở map không
+                if (postLatLng != null) {
+                    Toast.makeText(this, "Mở bản đồ lớn...", Toast.LENGTH_SHORT).show();
+                    openFullScreenMap(); // Gọi hàm mở bản đồ toàn màn hình
+                } else {
+                    Log.w(TAG, "Shake detected but no location available to open map.");
+                    // Không cần thông báo lỗi cho người dùng về việc lắc khi không có map
+                }
+            }
+        }
+        // ---------------------------
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // Thường không cần xử lý cho accelerometer shake detection
+    }
+
+    // onMapReady giữ nguyên như PostDetailLandlordActivity
+    @Override
+    public void onMapReady(@NonNull GoogleMap googleMap) {
+        Log.d(TAG, "Detail Map Ready");
+        detailMap = googleMap;
+        detailMap.getUiSettings().setAllGesturesEnabled(false); // Tắt hết tương tác cho map nhỏ
+        detailMap.getUiSettings().setMapToolbarEnabled(false);
+
+        if (postLatLng != null) {
+            updateDetailMapMarker(postLatLng, currentPost != null ? currentPost.getTitle() : "Vị trí");
+        }
     }
 
     private void loadPostDetails() {
         Log.d(TAG, "Loading details for post: " + postId);
         progressBarDetail.setVisibility(View.VISIBLE);
         scrollViewContent.setVisibility(View.GONE); // Ẩn nội dung khi load
-        btnCallLandlord.setVisibility(View.GONE);
+        btnContactOptions.setVisibility(View.GONE);
 
         DocumentReference postRef = db.collection("posts").document(postId);
         postRef.get().addOnCompleteListener(task -> {
@@ -183,7 +375,7 @@ public class PostDetailTenantActivity extends AppCompatActivity {
                                     loadLandlordInfo(currentPost.getUserId());
                                 } else {
                                     setDefaultLandlordInfo();
-                                    btnCallLandlord.setVisibility(View.GONE); // Không có chủ thì ẩn nút gọi
+                                    btnContactOptions.setVisibility(View.GONE); // Không có chủ thì ẩn nút gọi
                                 }
                                 // Tăng view count
                                 incrementViewCount(postId);
@@ -220,7 +412,7 @@ public class PostDetailTenantActivity extends AppCompatActivity {
                 notNull(currentPost.getWard()),
                 notNull(currentPost.getDistrict()),
                 notNull(currentPost.getCity())
-        ).replaceAll("(, )+", ", ").replaceAll("^, |, $", ""); // Dọn dẹp dấu phẩy thừa
+        ).replaceAll("(, )+", ", ").replaceAll("^, |, $", "");
         tvFullAddress.setText(fullAddressStr.isEmpty() ? "Không có địa chỉ" : fullAddressStr);
 
 
@@ -232,6 +424,7 @@ public class PostDetailTenantActivity extends AppCompatActivity {
         tvFloorsValue.setText(String.valueOf(currentPost.getFloors())); // Hiển thị số tầng
 
 
+
         if (currentPost.getTimestamp() != null) {
             tvPostingDateDetail.setText("Tin đăng ngày: " + dateFormat.format(currentPost.getTimestamp().toDate()));
         } else {
@@ -239,26 +432,41 @@ public class PostDetailTenantActivity extends AppCompatActivity {
         }
 
         // Setup ViewPager2
-        List<String> images = currentPost.getImageUrls() != null ? currentPost.getImageUrls() : Collections.emptyList();
-        if (images.isEmpty()) {
+        // --- Setup ViewPager2 với listener ---
+        postImageUrls = currentPost.getImageUrls() != null ? currentPost.getImageUrls() : Collections.emptyList();
+        if (postImageUrls.isEmpty()) {
             viewPagerImages.setVisibility(View.GONE);
             tvImageCounter.setVisibility(View.GONE);
         } else {
             viewPagerImages.setVisibility(View.VISIBLE);
             tvImageCounter.setVisibility(View.VISIBLE);
-            imageSliderAdapter = new ImageSliderAdapter(this,images,
-                    imageUrl -> {
-                        // Xử lý khi nhấn vào ảnh (nếu cần)
-                    });
+            // *** Khởi tạo adapter với listener là this ***
+            imageSliderAdapter = new ImageSliderAdapter(this, postImageUrls, this);
             viewPagerImages.setAdapter(imageSliderAdapter);
-            updateImageCounter(images.size());
+            updateImageCounter(postImageUrls.size());
             viewPagerImages.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
                 @Override
                 public void onPageSelected(int position) {
                     super.onPageSelected(position);
-                    updateImageCounter(images.size());
+                    updateImageCounter(postImageUrls.size());
                 }
             });
+        }
+
+        // --- Xử lý Map ---
+        View mapFragmentView = findViewById(R.id.mapDetailFragmentContainerTenant); // Lấy view của fragment
+        if (currentPost.getLatitude() != 0 || currentPost.getLongitude() != 0) {
+            postLatLng = new LatLng(currentPost.getLatitude(), currentPost.getLongitude());
+            btnViewFullMap.setVisibility(View.VISIBLE);
+            if(mapFragmentView != null) mapFragmentView.setVisibility(View.VISIBLE); // Hiện fragment map
+            if (detailMap != null) {
+                updateDetailMapMarker(postLatLng, currentPost.getTitle());
+            }
+        } else {
+            postLatLng = null;
+            btnViewFullMap.setVisibility(View.GONE);
+            if(mapFragmentView != null) mapFragmentView.setVisibility(View.GONE); // Ẩn fragment map
+            Log.w(TAG,"Post has no valid coordinates (0,0). Hiding map.");
         }
     }
 
@@ -267,6 +475,16 @@ public class PostDetailTenantActivity extends AppCompatActivity {
         return value != null ? value : "";
     }
 
+    // *** Implement OnItemClickListener cho ImageSliderAdapter ***
+    @Override
+    public void onItemClick(int position) {
+        if (postImageUrls != null && !postImageUrls.isEmpty()) {
+            Intent intent = new Intent(this, FullScreenImageViewerActivity.class);
+            intent.putStringArrayListExtra(FullScreenImageViewerActivity.EXTRA_IMAGE_URLS, new ArrayList<>(postImageUrls));
+            intent.putExtra(FullScreenImageViewerActivity.EXTRA_START_POSITION, position);
+            startActivity(intent);
+        }
+    }
 
     private void updateImageCounter(int totalImages) {
         if (totalImages > 0) {
@@ -296,31 +514,95 @@ public class PostDetailTenantActivity extends AppCompatActivity {
                                 } else {
                                     ivLandlordAvatar.setImageResource(R.drawable.person_24px);
                                 }
-                                // Hiển thị nút gọi nếu có SĐT
+                                // *** CẬP NHẬT NÚT LIÊN HỆ ***
                                 if (landlordInfo.getPhoneNumber() != null && !landlordInfo.getPhoneNumber().trim().isEmpty()){
-                                    btnCallLandlord.setText("Gọi: " + landlordInfo.getPhoneNumber()); // Hiện SĐT trên nút
-                                    btnCallLandlord.setVisibility(View.VISIBLE);
+                                    btnContactOptions.setText("Liên hệ: " + landlordInfo.getPhoneNumber()); // Hiện SĐT
+                                    btnContactOptions.setVisibility(View.VISIBLE); // Hiển thị nút
                                 } else {
-                                    btnCallLandlord.setVisibility(View.GONE);
+                                    btnContactOptions.setVisibility(View.GONE); // Ẩn nút nếu không có SĐT
                                 }
+                                // **************************
+
                             } else {
                                 setDefaultLandlordInfo();
-                                btnCallLandlord.setVisibility(View.GONE);
+                                btnContactOptions.setVisibility(View.GONE);
                             }
                         } else {
-                            setDefaultLandlordInfo();
-                            btnCallLandlord.setVisibility(View.GONE);
-                            Log.d(TAG, "Landlord user document not found: " + userId);
+                            // ... (setDefaultLandlordInfo, ẩn nút)
+                            btnContactOptions.setVisibility(View.GONE);
                         }
                     }
                 })
                 .addOnFailureListener(e -> {
                     if (!isDestroyed() && !isFinishing()){
-                        setDefaultLandlordInfo();
-                        btnCallLandlord.setVisibility(View.GONE);
-                        Log.e(TAG, "Error loading landlord info for user: " + userId, e);
+                        // ... (setDefaultLandlordInfo, ẩn nút)
+                        btnContactOptions.setVisibility(View.GONE);
                     }
                 });
+    }
+
+    private void showContactOptionsDialog(final String phoneNumber) {
+        final CharSequence[] options = {"Gọi điện", "Nhắn tin SMS", "Mở Zalo"};
+        final boolean isZaloInstalled = isAppInstalled("com.zing.zalo"); // Kiểm tra Zalo
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setTitle("Liên hệ với chủ nhà");
+
+        // Tạo danh sách lựa chọn, chỉ thêm Zalo nếu đã cài
+        ArrayList<CharSequence> availableOptions = new ArrayList<>();
+        availableOptions.add(options[0]); // Gọi điện
+        availableOptions.add(options[1]); // SMS
+        if (isZaloInstalled) {
+            availableOptions.add(options[2]); // Zalo
+        }
+
+        builder.setItems(availableOptions.toArray(new CharSequence[0]), (dialog, which) -> {
+            String selectedOption = availableOptions.get(which).toString();
+            switch (selectedOption) {
+                case "Gọi điện":
+                    Intent dialIntent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phoneNumber));
+                    startActivitySafely(dialIntent, "Không thể mở ứng dụng gọi điện.");
+                    break;
+                case "Nhắn tin SMS":
+                    Intent smsIntent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + phoneNumber));
+                    // intent.putExtra("sms_body", "Xin chào, tôi quan tâm đến phòng trọ bạn đăng trên HomeRent."); // Thêm nội dung SMS mặc định (tùy chọn)
+                    startActivitySafely(smsIntent, "Không thể mở ứng dụng nhắn tin.");
+                    break;
+                case "Mở Zalo":
+                    // Đảm bảo kiểm tra lại isZaloInstalled nếu cần
+                    // Uri zaloUri = Uri.parse("zalo://qr/p/" + phoneNumber); // Thử URI Zalo qua SĐT (có thể không ổn định)
+                    // Hoặc dùng link web zalo.me
+                    Uri zaloUri = Uri.parse("https://zalo.me/" + phoneNumber);
+                    Intent zaloIntent = new Intent(Intent.ACTION_VIEW, zaloUri);
+                    // Không cần setPackage vì sẽ mở qua trình duyệt nếu Zalo không xử lý được link web
+                    startActivitySafely(zaloIntent, "Không thể mở Zalo hoặc trình duyệt.");
+                    break;
+            }
+        });
+
+        builder.setNegativeButton("Hủy", (dialog, which) -> dialog.dismiss());
+        builder.show();
+    }
+
+    // Hàm helper để kiểm tra ứng dụng đã cài đặt chưa
+    private boolean isAppInstalled(String packageName) {
+        PackageManager pm = getPackageManager();
+        try {
+            pm.getPackageInfo(packageName, PackageManager.GET_ACTIVITIES);
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    // Hàm helper để khởi chạy Intent an toàn
+    private void startActivitySafely(Intent intent, String errorMessage) {
+        try {
+            startActivity(intent);
+        } catch (android.content.ActivityNotFoundException ex) {
+            Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Activity not found for intent: " + intent.toString(), ex);
+        }
     }
 
     private void setDefaultLandlordInfo() {
@@ -332,7 +614,7 @@ public class PostDetailTenantActivity extends AppCompatActivity {
         if (!isDestroyed() && !isFinishing()) {
             Toast.makeText(this, message, Toast.LENGTH_LONG).show();
             scrollViewContent.setVisibility(View.GONE);
-            btnCallLandlord.setVisibility(View.GONE);
+            btnContactOptions.setVisibility(View.GONE);
             // Có thể finish activity hoặc hiển thị lỗi trên màn hình
             // finish();
         }
